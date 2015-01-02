@@ -9,3 +9,8 @@ set_swl "osal" "01"
 #------------------------------
 set_swl "platform/datetime" "02"
 
+# ------------------------------
+# SWL 03 - protocol level
+# ------------------------------
+set_swl "empiricalZK/ikos" "03"
+set_swl "empiricalZK/rtz14" "03"
