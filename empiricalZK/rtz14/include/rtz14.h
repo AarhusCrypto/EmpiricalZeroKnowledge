@@ -26,6 +26,9 @@ typedef struct _rtz14_ {
 	 */
 	bool (*executeProof)(char * proverIP, uint port);
 
+	// The implementation details hidden as a mem blob.
+	void * impl;
+
 } * Rtz14;
 
 /**
