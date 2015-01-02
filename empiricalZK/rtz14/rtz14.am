@@ -46,7 +46,7 @@
 # hope is only a few variables needs to be redefined.
 #
 #
-AM_CFLAGS=-I$(top_srcdir)/include
+AM_CFLAGS=-I$(top_srcdir)/include -I$(prefix)/include
 AM_LDFLAGS=-L$(prefix)/lib
 
 
