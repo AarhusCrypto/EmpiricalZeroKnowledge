@@ -97,7 +97,6 @@ void * allocate_stub_fun(byte * static_stub, byte * invoke_fkt, void * ths) {
 		free_slot->ths = ths;
 		mcpy(free_slot->code,static_stub,STUB_SIZE-2*sizeof(void*));
 		Mutex_unlock(_coo_lock);
-		printf("slot adr: %p \n",free_slot);
 		return &(free_slot->code[0]);
 
 	}
