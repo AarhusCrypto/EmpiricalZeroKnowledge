@@ -36,11 +36,7 @@
 # 2013-07-25 12:28: Initial version created
 
 # Example creating one binary executable from main.c
-include $(top_srcdir)/rtz14.am
+include $(top_srcdir)/random.am
 
-lib_LIBRARIES = librtz14.a
-librtz14_a_SOURCES = rtz14.c circuitparser.c circuit_analyser.c emitter.c
-
-bin_PROGRAMS = prover
-prover_SOURCES = prover.c
-prover_LDADD = librtz14.a
+lib_LIBRARIES = librandom.a
+librandom_a_SOURCES = random.c

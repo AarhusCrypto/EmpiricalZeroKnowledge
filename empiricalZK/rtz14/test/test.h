@@ -7,6 +7,7 @@
 
 #ifndef RTZ14_TEST_TEST_H_
 #define RTZ14_TEST_TEST_H_
+#include <osal.h>
 typedef struct _test_ {
 	char * name;
 	int (*run)(OE oe);

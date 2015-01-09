@@ -9,15 +9,21 @@ typedef struct _datetime_ {
 	uint (*getSecondTime)();
 
 	/**
-	 * Time in Nanoseconds since EPOCH (1/1/1970).
+	 * Time in Milliseconds since EPOCH (1/1/1970)
 	 */
-	ull (*getNanoTime)();
+	ull (*getMilliTime)();
 
 	/**
 	 * Time in Microseconds since EPOCH (1/1/1970).
 	 */
 	ull (*getMicroTime)();
 
+	/**
+	 * Time in Nanoseconds since EPOCH (1/1/1970).
+	 */
+	ull (*getNanoTime)();
+
+	void * impl;
 } * DateTime;
 
 DateTime DateTime_New(OE oe);

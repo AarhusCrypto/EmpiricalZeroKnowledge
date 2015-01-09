@@ -33,14 +33,7 @@
 # Author: Rasmus Winther Lauritsen, rwl@cs.au.dk
 
 # Changes: 
-# 2013-07-25 12:28: Initial version created
+# 2013-07-25 11:57: Initial version created
+SUBDIRS = src test include
 
-# Example creating one binary executable from main.c
-include $(top_srcdir)/rtz14.am
 
-lib_LIBRARIES = librtz14.a
-librtz14_a_SOURCES = rtz14.c circuitparser.c circuit_analyser.c emitter.c
-
-bin_PROGRAMS = prover
-prover_SOURCES = prover.c
-prover_LDADD = librtz14.a

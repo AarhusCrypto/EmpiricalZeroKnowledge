@@ -96,6 +96,7 @@ extern const char * GRAPHICS_LIBRARY;
     RC_FAIL,
     RC_NOMEM,
     RC_BAD_ARGS,
+	RC_BAD_DATA,
   } RC;
 
   typedef enum {

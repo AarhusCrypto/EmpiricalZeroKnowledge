@@ -885,7 +885,7 @@ OE OperatingEnvironment_LinuxNew() {
   if (!oe) return 0;
   zeromem(oe,sizeof(*oe));
   
-  InitializeCOO(128,mem);
+  InitializeCOO(10240,mem);
 
   COO_ATTACH(OE, oe, set_log_file);
   COO_ATTACH(OE, oe, get_version);
@@ -926,7 +926,7 @@ OE OperatingEnvironment_LinuxNew() {
   simpleOE->log_file = 0;
 
   oe->p("************************************************************");
-  oe->p("   "PACKAGE_STRING" - "CODENAME );
+  oe->p("  #"PACKAGE_STRING" - "CODENAME );
   oe->p("   "BUILD_TIME);
   oe->p("************************************************************");
   oe->lock(_static_lock);
