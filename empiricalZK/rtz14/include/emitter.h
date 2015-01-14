@@ -13,6 +13,18 @@
 #include <map.h>
 #include <circuit_analyser.h>
 
+typedef struct _emitter_result_ {
+	byte * emitted_string;
+	uint lemitted_string;
+	byte * perms;
+	uint lperms;
+	byte * major;
+	uint lmajor;
+} * EmitterResult;
+
+void apply_permutation(byte * perms, uint perm_idx, uint * indices);
+void apply_majority(byte * maj, uint maj_idx, uint * indices);
+
 /**
  * EvaluationStringEmitter
  *

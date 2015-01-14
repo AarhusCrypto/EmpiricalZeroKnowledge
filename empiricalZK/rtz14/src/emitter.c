@@ -34,6 +34,7 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ese_visit, List circuit;,circuit) {
 	uint lbit_string = 0;
 	ESEVisitor e = (ESEVisitor)this->impl;
 	uint i = 0, no_ands = 0;
+	EmitterResult er = 0;
 
 	if (e->bit_string) {
 		e->oe->putmem(e->bit_string);
@@ -44,6 +45,9 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ese_visit, List circuit;,circuit) {
 		if (g->type == G_AND)
 			++no_ands;
 	}
+
+	er = e->oe->getmem(sizeof(*er));
+
 
 
 	lbit_string = circuit->size()*3+3*no_ands;
@@ -58,7 +62,9 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ese_visit, List circuit;,circuit) {
 		if (g->type == G_AND) this->visitAnd(g);
 	}
 
-	return e->bit_string;
+	er->emitted_string = e->bit_string;
+
+	return er;
 }
 
 COO_DCL(CircuitVisitor, void *, ese_visit_and, Gate and);

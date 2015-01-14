@@ -5,7 +5,7 @@
 #include <osal.h>
 #include <singlelinkedlist.h>
 #include <common.h>
-
+#include <rnd.h>
 typedef struct _rtz14_ {
 
 	/**
@@ -51,11 +51,13 @@ typedef struct _rtz14_ {
  *
  * Create a fresh RTZ ZeroKnowledge instance
  *
- * \param oe     - The operating system abstraction
+ * \param oe     - The operating system abstraction.
+ *
+ * \param rnd    - random source to use.
  *
  * \return a fresh zero knowledge instance.
  */
-Rtz14 Rtz14_New(OE oe);
+Rtz14 Rtz14_New(OE oe, Rnd rnd);
 
 /**
  *

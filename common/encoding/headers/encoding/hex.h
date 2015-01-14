@@ -7,6 +7,8 @@ extern "C" {
 #endif
 
 
+
+
 /*!
  * Convert a hex string of length 2 into one byte.
  *

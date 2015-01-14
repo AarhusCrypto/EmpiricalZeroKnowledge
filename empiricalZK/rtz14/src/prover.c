@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <circuitparser.h>
 #include <emitter.h>
-
+#include <encoding/int.h>
 
 static uint load_buffer(OE oe, byte ** buffer, char * filename) {
 	uint lbuffer = 0;
@@ -70,13 +70,12 @@ static uint decode_port(OE oe, Map options) {
 
 	port_s = (char*)options->get("port");
 
-	atoui(port_s,&port);
+	atoui((byte*)port_s,&port);
 
 	return port;
 }
 
 int main(int argc, char ** argv) {
-
 	OE oe = OperatingEnvironment_LinuxNew();
 	byte * buffer = 0;
 	uint lbuffer = 0;
@@ -84,9 +83,9 @@ int main(int argc, char ** argv) {
 	uint port = 0;
 	Map options = 0;
 	Rtz14 zk = 0;
+	Rnd rnd = LibcWeakRandomSource_New(oe);
 
 	if (!oe) {
-		printf("Unsupported platform :( unable to instantiate Operating System Abstract.\n");
 		return -1;
 	}
 
@@ -96,7 +95,7 @@ int main(int argc, char ** argv) {
 		return -2;
 	}
 
-	zk =  Rtz14_New(oe);
+	zk =  Rtz14_New(oe, rnd);
 	if (!zk) {
 		oe->syslog(OSAL_LOGLEVEL_FATAL,"unable to create Rtz14 instance.");
 		return -3;
