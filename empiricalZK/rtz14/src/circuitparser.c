@@ -20,6 +20,21 @@ typedef struct _circuit_parser_impl_ {
 	Tokenizer tokenizer;
 } * CPI;
 
+void Circuit_Destroy(OE oe, List * circuit) {
+	List c = 0;
+	Gate g = 0;
+	uint i = 0;
+	if (!circuit) return;
+	c = *circuit;
+	if (!c) return;
+
+	for(i = 0;i < c->size();++i) {
+		g = c->get_element(i);
+		oe->putmem(g);
+	}
+	SingleLinkedList_destroy(circuit);
+}
+
 COO_DCL(CPI,Gate,parseAnd);
 COO_DEF_RET_NOARGS(CPI, Gate, parseAnd) {
 	char b[64] = {0};

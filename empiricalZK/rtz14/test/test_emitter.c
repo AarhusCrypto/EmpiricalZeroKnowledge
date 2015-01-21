@@ -11,7 +11,7 @@
 #include <circuit_analyser.h>
 #include <circuitparser.h>
 #include <map.h>
-#include "emitter.h"
+#include "emiter.h"
 
 static int test_emit_and_gate(OE oe) {
 	Tokenizer tk = 0;

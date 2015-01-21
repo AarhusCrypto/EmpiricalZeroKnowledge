@@ -13,8 +13,9 @@
 #include <encoding/hex.h>
 #include <stdlib.h>
 #include <circuitparser.h>
-#include <emitter.h>
+#include <emiter.h>
 #include <encoding/int.h>
+#include <datetime.h>
 
 static uint load_buffer(OE oe, byte ** buffer, char * filename) {
 	uint lbuffer = 0;
@@ -75,6 +76,11 @@ static uint decode_port(OE oe, Map options) {
 	return port;
 }
 
+#define UserReport(oe,msg,...) {\
+	byte ____b[512] = {0}; \
+	osal_sprintf(____b,(msg),##__VA_ARGS__);\
+	(oe)->syslog(OSAL_LOGLEVEL_USER,____b); }
+
 int main(int argc, char ** argv) {
 	OE oe = OperatingEnvironment_LinuxNew();
 	byte * buffer = 0;
@@ -84,6 +90,7 @@ int main(int argc, char ** argv) {
 	Map options = 0;
 	Rtz14 zk = 0;
 	Rnd rnd = LibcWeakRandomSource_New(oe);
+	DateTime t = DateTime_New(oe);ull s = 0;
 
 	if (!oe) {
 		return -1;
@@ -107,6 +114,9 @@ int main(int argc, char ** argv) {
 		CircuitParser cp = 0;
 		List circuit = 0;
 
+		// PARSING
+		s = t->getMilliTime();
+		UserReport(oe,"Parsing circuit in %s",options->get("circuit"));
 
 		// create tokenizer that accept the langauage of
 		// JBN AES circuit from Nigel et al.
@@ -120,21 +130,30 @@ int main(int argc, char ** argv) {
 		lbuffer = load_buffer(oe,&buffer,options->get("circuit"));
 		if (!buffer) return 0;
 
+		// parse buffer to a circuit (list of gates)
+		circuit = cp->parseSource(buffer,lbuffer);
+
+		UserReport(oe,"Parsing circuit took %lu ms.",t->getMilliTime()-s);
+
+
+		// PREPARING Proof
+		s = t->getMilliTime();
 		// decode witness
 		witness = decode_witness(oe,options);
+		UserReport(oe, "Preparing proof with witness %s... ",witness);
 
 		// decode port
 		port = decode_port(oe,options);
 
-		// parse buffer to a circuit (list of gates)
-		circuit = cp->parseSource(buffer,lbuffer);
 
 		// buffer no longer needed free up space
 		(oe->putmem(buffer),buffer=0,lbuffer=0);
 
+		UserReport(oe,"Executing proof ");
 		// act as prover or verifier depending on arguments given.
 		success = zk->executeProof(circuit, witness,
 				                   (char*)options->get("ip"), port);
+		UserReport(oe, "Total proof time including waiting for the verifier %lu",t->getMilliTime()-s)
 
 		// report to the user the result
 		if (success == True) {
@@ -147,6 +166,19 @@ int main(int argc, char ** argv) {
 		CircuitParser_Destroy(&cp);
 		clean_up_circuit(oe,circuit);
 		Rtz14_Destroy(&zk);
+	} else {
+		oe->p("\n\nThe RTZ14 protocol for Zero-Knowledge (C) All rights reserved Aarhus University\n\n"\
+//
+		      "\nUsage: prover -circuit <circuit filepath> -witness <hex string> -port <port>\n\n"\
+//
+		      "  <circuit filepath>: the relative or aboslute path to a file containing a circuit"\
+			  "\n  description in the supported format lines with:  XOR(X,Y,Z) or AND(X,Y,Z).\n\n"\
+//
+		      "  <hex string>: The bits of the witness encoded as a hex string padded with zeros\n"\
+			  "  for an integral number of bytes that is an even number of digits are expected.\n\n"\
+//
+		      "  <port>: the port-number [1-65535] where the verifier is expected to connect.\n");
+		return -5;
 	}
 
 	// and we are done

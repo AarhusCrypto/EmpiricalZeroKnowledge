@@ -198,6 +198,8 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, igv_visit, List circuit;, circuit) {
 		}
 		}
 	}
+	// TODO(rwz): Cleaned by destructor not optimal :(
+	// client code may still hold on to the map, no?
 	return igv->input_locations;
 }
 

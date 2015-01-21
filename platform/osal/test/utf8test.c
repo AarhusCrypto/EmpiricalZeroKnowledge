@@ -36,6 +36,7 @@ int main(int c, char **a) {
 
   s = UTF8_String_cstrnew(oe, "Rasmus");
   t = UTF8_String_cstrnew(oe, "mus");
+
   TEST("Suffix mus of Rasmus", s->endswith(t) == True, "Expected true");
   UTF8_String_destroy(&s);
   UTF8_String_destroy(&t);

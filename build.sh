@@ -84,8 +84,19 @@ set_swl() {
     MAKE_SCRIPTS=$(helper_assign_priority ${1} ${2})
 }
 
+#
+# Build in the {linux} folder with a {liunx.mak} file, afterwards do a
+# {make install}.
+#
+# \param ${1} - current directory
+#
+# \param ${2} - configuration (debug/release)
+#
+# \return - this function prints "1" on success "0" otherwise.
+#
 build_dir() {
     CURDIR=${1}
+    CONF=${2}
     pushd ${CURDIR} 2>&1 > /dev/null
     OUT1=$(make -f linux.mak BUILDDIR=${BUILDDIR} 2>&1)
     FST=$?
@@ -104,6 +115,10 @@ build_dir() {
     popd 2>&1 > /dev/null
 }
 
+
+#
+#
+#
 clean_dir() {
     CURDIR=${1}
     pushd ${CURDIR} 2>&1 > /dev/null
@@ -127,6 +142,11 @@ clean_dir() {
 # filter list and the current directory is not on that list we will
 # skip it.
 #
+#
+# \param ${1} - build/clean action 
+#
+# \param ${2} - release/debug configuration
+#
 #------------------------------------------------------------
 build_all_linuxdotmak() {
     . deptree.sh
@@ -138,7 +158,7 @@ build_all_linuxdotmak() {
 	    print_start ${CURDIR:0:${#CURDIR}-6};
 	    case ${1} in
 		"build")
-		    OK=$(build_dir ${CURDIR})
+		    OK=$(build_dir ${CURDIR} ${2})
 		    ;;
 		"clean")
 		    OK=$(clean_dir ${CURDIR})
@@ -157,7 +177,7 @@ build_all_linuxdotmak() {
 		if [ "$(echo ${mkfile} | grep ${proj})" != "" ]; then
 		    case ${1} in
 			"build")
-			    OK=$(build_dir ${CURDIR})
+			    OK=$(build_dir ${CURDIR} ${2})
 			    ;;
 			"clean")
 			    OK=$(clean_dir ${CURDIR})
@@ -882,13 +902,21 @@ case $CMD in
     "new")
 	new_project ${1}
 	;;
+    "debug")
+	if [ "$FILTER" == "" ]; then
+	    echo "Building all projects in ${BUILDDIR}: "
+	else
+	    echo "Building project(s) in ${BUILDDIR}: ${@}"
+	fi
+	build_all_linuxdotmak "build" "debug";
+	;;
     "build") 
 	if [ "$FILTER" == "" ]; then
 	    echo "Building all projects in ${BUILDDIR}: "
 	else
 	    echo "Building project(s) in ${BUILDDIR}: ${@}"
 	fi
-	build_all_linuxdotmak "build";
+	build_all_linuxdotmak "build" "release";
 
 	;;
     "clean")

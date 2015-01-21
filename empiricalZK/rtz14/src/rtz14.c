@@ -5,7 +5,7 @@
 #include <circuitparser.h>
 #include <circuit_analyser.h>
 #include <map.h>
-#include <emitter.h>
+#include <emiter.h>
 #include <carena.h>
 #include <rnd.h>
 #include <linear_proof.h>
@@ -58,7 +58,7 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 	Map input_gates = 0;
 	CircuitVisitor emitter = 0;
 	CircuitVisitor igv = InputGateVisitor_New(oe);
-	EmitterResult emitter_res = 0;
+	EmiterResult emitter_res = 0;
 	byte * emitted_circuit = 0;
 	CArena conn = 0;
 	CircuitVisitor proof_task_builder = 0;

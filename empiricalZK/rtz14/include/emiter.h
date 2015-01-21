@@ -20,7 +20,10 @@ typedef struct _emitter_result_ {
 	uint lperms;
 	byte * major;
 	uint lmajor;
-} * EmitterResult;
+} * EmiterResult;
+
+// clean up emiter result
+void EmiterResult_Destroy(OE oe,EmiterResult * er);
 
 void apply_permutation(byte * perms, uint perm_idx, uint * indices);
 void apply_majority(byte * maj, uint maj_idx, uint * indices);
@@ -28,7 +31,7 @@ void apply_majority(byte * maj, uint maj_idx, uint * indices);
 /**
  * EvaluationStringEmitter
  *
- * This emitter builds a string that is the evaluation
+ * This emiter builds a string that is the evaluation
  * of a circuit provided to the visit method. The inputs are
  * taken from input_gates. This the circuit with the input_gates map must
  * form a closure with no free heap addresses. When the heap is populated

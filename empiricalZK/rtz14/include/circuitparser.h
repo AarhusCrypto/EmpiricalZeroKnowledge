@@ -39,6 +39,12 @@ typedef struct _source_map_ {
 
 } * SourceMap;
 
+/**
+ * Destroying circuits happens quite a lot lets
+ * write that code once and for all.
+ */
+void Circuit_Destroy(OE oe, List * circuit);
+
 // Tokens that we support in any tokenizer.
 typedef enum {
 	/**
