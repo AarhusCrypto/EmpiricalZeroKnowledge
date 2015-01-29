@@ -16,6 +16,7 @@
 #include <emiter.h>
 #include <encoding/int.h>
 #include <datetime.h>
+#include <commitment.h>
 
 static uint load_buffer(OE oe, byte ** buffer, char * filename) {
 	uint lbuffer = 0;
@@ -76,10 +77,18 @@ static uint decode_port(OE oe, Map options) {
 	return port;
 }
 
-#define UserReport(oe,msg,...) {\
-	byte ____b[512] = {0}; \
-	osal_sprintf(____b,(msg),##__VA_ARGS__);\
-	(oe)->syslog(OSAL_LOGLEVEL_USER,____b); }
+static uint decode_address_of_one(OE oe, Map options) {
+	char * aoo_s = 0;
+	uint aoo = 0;
+
+	if (!options->contains("oneaddress")) {
+		aoo = 0;
+		return aoo;
+	}
+	aoo_s = options->get("oneaddress");
+	atoui((byte*)aoo_s, &aoo);
+	return aoo;
+}
 
 int main(int argc, char ** argv) {
 	OE oe = OperatingEnvironment_LinuxNew();
@@ -91,6 +100,8 @@ int main(int argc, char ** argv) {
 	Rtz14 zk = 0;
 	Rnd rnd = LibcWeakRandomSource_New(oe);
 	DateTime t = DateTime_New(oe);ull s = 0;
+	CommitmentScheme cs = 0;
+	uint aoo = 0;
 
 	if (!oe) {
 		return -1;
@@ -102,7 +113,15 @@ int main(int argc, char ** argv) {
 		return -2;
 	}
 
-	zk =  Rtz14_New(oe, rnd);
+	cs = DummyScheme_New(oe);
+	if (!cs) {
+		oe->syslog(OSAL_LOGLEVEL_FATAL,"Out of memory, cannot instantiate commitment scheme.");
+		return -2;
+	}
+
+	aoo = decode_address_of_one(oe, options);
+
+	zk =  Rtz14_New(oe, rnd, cs,aoo);
 	if (!zk) {
 		oe->syslog(OSAL_LOGLEVEL_FATAL,"unable to create Rtz14 instance.");
 		return -3;
@@ -134,7 +153,6 @@ int main(int argc, char ** argv) {
 		circuit = cp->parseSource(buffer,lbuffer);
 
 		UserReport(oe,"Parsing circuit took %lu ms.",t->getMilliTime()-s);
-
 
 		// PREPARING Proof
 		s = t->getMilliTime();
@@ -177,11 +195,12 @@ int main(int argc, char ** argv) {
 		      "  <hex string>: The bits of the witness encoded as a hex string padded with zeros\n"\
 			  "  for an integral number of bytes that is an even number of digits are expected.\n\n"\
 //
-		      "  <port>: the port-number [1-65535] where the verifier is expected to connect.\n");
+		      "  <port>: the port-number [1-65535] where the verifier is expected to alias run_verifier ect.\n");
 		return -5;
 	}
 
 	// and we are done
+
 	OperatingEnvironment_LinuxDestroy(&oe);
 	return 0;
 }

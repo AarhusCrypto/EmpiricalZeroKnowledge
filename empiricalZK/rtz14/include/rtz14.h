@@ -6,6 +6,17 @@
 #include <singlelinkedlist.h>
 #include <common.h>
 #include <rnd.h>
+#include <commitment.h>
+
+/*
+ * Macro for writing nice messages to the user.
+ */
+#define UserReport(oe,msg,...) {\
+	byte ____b[512] = {0}; \
+	osal_sprintf((char*)____b,(msg),##__VA_ARGS__);\
+	(oe)->syslog(OSAL_LOGLEVEL_USER,____b); }
+
+
 typedef struct _rtz14_ {
 
 	/**
@@ -55,9 +66,14 @@ typedef struct _rtz14_ {
  *
  * \param rnd    - random source to use.
  *
+ * \param scheme - underlying commitment scheme to use
+ *
+ * \param address_of_one - the heap address that yields
+ *                         the constant one initially.
+ *
  * \return a fresh zero knowledge instance.
  */
-Rtz14 Rtz14_New(OE oe, Rnd rnd);
+Rtz14 Rtz14_New(OE oe, Rnd rnd, CommitmentScheme scheme, uint address_of_one);
 
 /**
  *

@@ -5,6 +5,7 @@
 #include <rnd.h>
 #include <map.h>
 #include <emiter.h>
+#include "testutils.h"
 
 static int test_create_linear_prover(OE oe) {
 	_Bool ok = 0;
@@ -36,8 +37,6 @@ static List build_circuit(OE oe, char * cstr) {
 	return circuit;
 }
 
-#define AssertTrue(COND) \
-	if (( ok &= (COND)) != 1) goto test_end;
 
 /*
  * Test generation of permutation with one and gate.
@@ -203,62 +202,8 @@ static int test_set_bit(OE oe) {
 	return ok;
 }
 
-typedef struct _test_rnd_ {
-	OE oe;
-	byte v;
-} * TestRnd;
 
-COO_DCL(Rnd,void,test_rnd_rand,byte * d, uint ld);
-COO_DEF_NORET_ARGS(Rnd,test_rnd_rand,byte * d; uint ld;, d,ld) {
-	uint i = 0;
-	TestRnd impl = this->impl;
-	for(i = 0;i < ld;++i) d[i] = impl->v;
-}
-void TestRnd_Destroy(Rnd * tr);
-Rnd TestRnd_New(OE oe, byte v) {
-	Rnd rnd = oe->getmem(sizeof(*rnd));
-	TestRnd tr = 0;
-
-	if (!rnd) return 0;
-
-	tr = oe->getmem(sizeof(*tr));
-	if (!tr) goto fail;
-
-	COO_ATTACH_FN(Rnd,rnd,rand,test_rnd_rand);
-	rnd->impl = tr;
-	tr->oe = oe;
-	tr->v = v;
-
-	return rnd;
-	fail:
-
-	TestRnd_Destroy(&rnd);
-	if (rnd) {
-		oe->putmem(rnd);
-	}
-	return 0;
-}
-
-void TestRnd_Destroy(Rnd * tr) {
-	Rnd r = 0;
-	TestRnd t = 0;
-	OE oe =0;
-
-	if (!tr) return;
-	r = *tr;
-
-	t = r->impl;
-	if (!t) return;
-
-	COO_DETACH(r,rand);
-	oe = t->oe;
-
-	oe->putmem(r);
-	oe->putmem(t);
-
-	*tr = 0;
-}
-
+// test that we can create an instance of generate perm and maj visitor
 static int test_generate_perm_and_maj_create(OE oe) {
 	_Bool ok = 1;
 	byte d[] = {0};
@@ -270,9 +215,10 @@ static int test_generate_perm_and_maj_create(OE oe) {
 	return ok;
 }
 
+// test the generate perm and maj visitor is correct in the all zero case
 static int test_permmaj_one_allzero_idperm_and_gate(OE oe) {
 	_Bool ok = 1;
-	byte inputs[1] = {4};
+	byte inputs[1] = {0};
 	byte * evaled_circuit = 0;
 	Tokenizer tk = 0;
 	List circuit = 0;
@@ -313,7 +259,10 @@ test_end:
 	return ok;
 }
 
-static int test_permmaj_one_op1one_op2zero_idperm_and_gate(OE oe) {
+
+// test the perm and maj visitor is correct in the all ones case
+// with identity permutations
+static int test_permmaj_one_op1one_op2one_idperm_and_gate(OE oe) {
 	_Bool ok = 1;
 	byte inputs[1] = {1};
 	byte * evaled_circuit = 0;
@@ -326,7 +275,9 @@ static int test_permmaj_one_op1one_op2zero_idperm_and_gate(OE oe) {
 	CircuitVisitor gpam = 0;
 	EmiterResult er = 0;
 	GPam gpam_result = 0;
-	Rnd rnd = TestRnd_New(oe,0);
+	uint permutation_to_use = 0;
+	// the random choice coming out of the rnd determines the permuation to use
+	Rnd rnd = TestRnd_New(oe,permutation_to_use);
 
 	// so we fix address of 1 to 0
 	// we invert addresses 1 and 2 meaning we have ones there
@@ -369,6 +320,295 @@ test_end:
 }
 
 
+static int test_permmaj_one_op1one_op2zero_perm2_and_gate(OE oe) {
+	_Bool ok = 1;
+	byte inputs[1] = {1};
+	byte * evaled_circuit = 0;
+	Tokenizer tk = 0;
+	List circuit = 0;
+	Map input_gates = 0;
+	CircuitVisitor pog = 0;
+	CircuitVisitor igv = 0;
+	CircuitVisitor emiter = 0;
+	CircuitVisitor gpam = 0;
+	EmiterResult er = 0;
+	GPam gpam_result = 0;
+	uint permutation_to_use = 2;
+	// the random choice coming out of the rnd determines the permuation to use
+	Rnd rnd = TestRnd_New(oe,permutation_to_use);
+
+	// so we fix address of 1 to 0
+	// we invert addresses 1 meaning we have one as first operand to AND
+	// Then we will get a zero in address 3 yielding the bit string
+	//
+	// pi={1,0,2} betyder position 0 og 1 skifter plads, position 0 og et er
+	// 0 er op1 og position 1 er op2 og position 3 er dst. Derfor har vi at
+	// pi(010)=pi(bit3bit1bit2)=>(bit3bit2bit1)
+	//      c1 b1 b2  b3
+	// ADR: 0  1  2   3     pi(dst,op1,op2) => (op1,dst,op2)
+	//      1  1  0   0 = 3 pi(010)=(001)
+	circuit = build_circuit(oe,"//INV(1,1);AND(3,1,2)");
+	pog = PatchOneConstants_New(oe,0);
+	pog->visit(circuit);
+	igv = InputGateVisitor_New(oe);
+	input_gates = igv->visit(circuit);
+	emiter = EvaluationStringEmitter_New(oe,input_gates,inputs);
+	er = emiter->visit(circuit);
+
+	gpam = GeneratePermuationsAndMajorities_New(oe,rnd,er->emitted_string);
+	gpam_result = gpam->visit(circuit);
+
+	AssertTrue(er->emitted_string[0] == 3)
+	AssertTrue(circuit->size() > 1)
+	AssertTrue(gpam_result != 0)
+	AssertTrue(gpam_result->aux != 0)
+	AssertTrue(gpam_result->permutations != 0)
+	AssertTrue(gpam_result->majority != 0)
+	AssertTrue(gpam_result->permutations[0] == 2)
+	AssertTrue(gpam_result->majority[0] == 2)
+	// the auxiliary data should be 001=1
+	AssertTrue(gpam_result->aux[0] == 1)
+test_end:
+	Circuit_Destroy(oe,&circuit);
+	PatchOneConstants_Destroy(&pog);
+	InputGateVisitor_Destroy(&igv);
+	EvaluationStringEmitter_Destroy(&emiter);
+	EmiterResult_Destroy(oe,&er);
+
+	return ok;
+}
+
+
+static int test_permmaj_one_op1one_op2zero_perm3_and_gate(OE oe) {
+	_Bool ok = 1;
+	byte inputs[1] = {1};
+	byte * evaled_circuit = 0;
+	Tokenizer tk = 0;
+	List circuit = 0;
+	Map input_gates = 0;
+	CircuitVisitor pog = 0;
+	CircuitVisitor igv = 0;
+	CircuitVisitor emiter = 0;
+	CircuitVisitor gpam = 0;
+	EmiterResult er = 0;
+	GPam gpam_result = 0;
+	uint permutation_to_use = 3;
+	// the random choice coming out of the rnd determines the permuation to use
+	Rnd rnd = TestRnd_New(oe,permutation_to_use);
+
+	// so we fix address of 1 to 0
+	// we invert addresses 1 meaning we have one as first operand to AND
+	// Then we will get a zero in address 3 yielding the bit string
+	// ADR: 0 1 2   3
+	//      1 1 0   0 = 3
+	// pi = {1,2,0}, pi(dst,op1,op2) = (op1,op2,dst) = (100)
+	//
+	circuit = build_circuit(oe,"//INV(1,1);AND(3,1,2)");
+	pog = PatchOneConstants_New(oe,0);
+	pog->visit(circuit);
+	igv = InputGateVisitor_New(oe);
+	input_gates = igv->visit(circuit);
+	emiter = EvaluationStringEmitter_New(oe,input_gates,inputs);
+	er = emiter->visit(circuit);
+
+	gpam = GeneratePermuationsAndMajorities_New(oe,rnd,er->emitted_string);
+	gpam_result = gpam->visit(circuit);
+
+	AssertTrue(er->emitted_string[0] == 3)
+	AssertTrue(circuit->size() > 1)
+	AssertTrue(gpam_result != 0)
+	AssertTrue(gpam_result->aux != 0)
+	AssertTrue(gpam_result->permutations != 0)
+	AssertTrue(gpam_result->majority != 0)
+	// we use the identity permutation for the and gate AND(3,1,2)
+	// so it should be 0
+	AssertTrue(gpam_result->permutations[0] == 3)
+	// we use the identity permutation and because we have all ones
+	// the identity is also good for the majority permutation. !
+	AssertTrue(gpam_result->majority[0] == 0)
+	// the auxiliary data should be 100=4
+	AssertTrue(gpam_result->aux[0] == 4)
+test_end:
+	Circuit_Destroy(oe,&circuit);
+	PatchOneConstants_Destroy(&pog);
+	InputGateVisitor_Destroy(&igv);
+	EvaluationStringEmitter_Destroy(&emiter);
+	EmiterResult_Destroy(oe,&er);
+
+	return ok;
+}
+
+
+static int test_permmaj_one_op1one_op2zero_perm4_and_gate(OE oe) {
+	_Bool ok = 1;
+	byte inputs[1] = {1};
+	byte * evaled_circuit = 0;
+	Tokenizer tk = 0;
+	List circuit = 0;
+	Map input_gates = 0;
+	CircuitVisitor pog = 0;
+	CircuitVisitor igv = 0;
+	CircuitVisitor emiter = 0;
+	CircuitVisitor gpam = 0;
+	EmiterResult er = 0;
+	GPam gpam_result = 0;
+	uint permutation_to_use = 4;
+	// the random choice coming out of the rnd determines the permuation to use
+	Rnd rnd = TestRnd_New(oe,permutation_to_use);
+
+	// so we fix address of 1 to 0
+	// we invert addresses 1 meaning we have one as first operand to AND
+	// Then we will get a zero in address 3 yielding the bit string
+	// ADR: 0 1 2   3
+	//      1 1 0   0 = 3
+	// pi = {2,0,1} pi(dst,op1,op2) = (op2,dst,op1) = (001)
+	circuit = build_circuit(oe,"//INV(1,1);AND(3,1,2)");
+	pog = PatchOneConstants_New(oe,0);
+	pog->visit(circuit);
+	igv = InputGateVisitor_New(oe);
+	input_gates = igv->visit(circuit);
+	emiter = EvaluationStringEmitter_New(oe,input_gates,inputs);
+	er = emiter->visit(circuit);
+
+	gpam = GeneratePermuationsAndMajorities_New(oe,rnd,er->emitted_string);
+	gpam_result = gpam->visit(circuit);
+
+	AssertTrue(er->emitted_string[0] == 3)
+	AssertTrue(circuit->size() > 1)
+	AssertTrue(gpam_result != 0)
+	AssertTrue(gpam_result->aux != 0)
+	AssertTrue(gpam_result->permutations != 0)
+	AssertTrue(gpam_result->majority != 0)
+	AssertTrue(gpam_result->permutations[0] == 4)
+	AssertTrue(gpam_result->majority[0] == 2)
+	// the auxiliary data should be
+	AssertTrue(gpam_result->aux[0] == 1)
+test_end:
+	Circuit_Destroy(oe,&circuit);
+	PatchOneConstants_Destroy(&pog);
+	InputGateVisitor_Destroy(&igv);
+	EvaluationStringEmitter_Destroy(&emiter);
+	EmiterResult_Destroy(oe,&er);
+
+	return ok;
+}
+
+
+static int test_permmaj_one_op1one_op2zero_perm5_and_gate(OE oe) {
+	_Bool ok = 1;
+	byte inputs[1] = {1};
+	byte * evaled_circuit = 0;
+	Tokenizer tk = 0;
+	List circuit = 0;
+	Map input_gates = 0;
+	CircuitVisitor pog = 0;
+	CircuitVisitor igv = 0;
+	CircuitVisitor emiter = 0;
+	CircuitVisitor gpam = 0;
+	EmiterResult er = 0;
+	GPam gpam_result = 0;
+	uint permutation_to_use = 5;
+	// the random choice coming out of the rnd determines the permuation to use
+	Rnd rnd = TestRnd_New(oe,permutation_to_use);
+
+	// so we fix address of 1 to 0
+	// we invert addresses 1 meaning we have one as first operand to AND
+	// Then we will get a zero in address 3 yielding the bit string
+	// ADR: 0 1 2   3
+	//      1 1 0   0 = 3
+	// pi = {2,1,0} pi(dst,op1,op2) = (op2,op1,dst) = (010)
+	circuit = build_circuit(oe,"//INV(1,1);AND(3,1,2)");
+	pog = PatchOneConstants_New(oe,0);
+	pog->visit(circuit);
+	igv = InputGateVisitor_New(oe);
+	input_gates = igv->visit(circuit);
+	emiter = EvaluationStringEmitter_New(oe,input_gates,inputs);
+	er = emiter->visit(circuit);
+
+	gpam = GeneratePermuationsAndMajorities_New(oe,rnd,er->emitted_string);
+	gpam_result = gpam->visit(circuit);
+
+	AssertTrue(er->emitted_string[0] == 3)
+	AssertTrue(circuit->size() > 1)
+	AssertTrue(gpam_result != 0)
+	AssertTrue(gpam_result->aux != 0)
+	AssertTrue(gpam_result->permutations != 0)
+	AssertTrue(gpam_result->majority != 0)
+	// we use the identity permutation for the and gate AND(3,1,2)
+	// so it should be 0
+	AssertTrue(gpam_result->permutations[0] == 5)
+	AssertTrue(gpam_result->majority[0] == 1)
+	AssertTrue(gpam_result->aux[0] == 2)
+test_end:
+	Circuit_Destroy(oe,&circuit);
+	PatchOneConstants_Destroy(&pog);
+	InputGateVisitor_Destroy(&igv);
+	EvaluationStringEmitter_Destroy(&emiter);
+	EmiterResult_Destroy(oe,&er);
+
+	return ok;
+}
+
+
+static int test_permmaj_one_op1one_op2zero_perm1_and_gate(OE oe) {
+	_Bool ok = 1;
+	byte inputs[1] = {1};
+	byte * evaled_circuit = 0;
+	Tokenizer tk = 0;
+	List circuit = 0;
+	Map input_gates = 0;
+	CircuitVisitor pog = 0;
+	CircuitVisitor igv = 0;
+	CircuitVisitor emiter = 0;
+	CircuitVisitor gpam = 0;
+	EmiterResult er = 0;
+	GPam gpam_result = 0;
+	uint permutation_to_use = 1;
+	// the random choice coming out of the rnd determines the permuation to use
+	Rnd rnd = TestRnd_New(oe,permutation_to_use);
+
+	// so we fix address of 1 to 0
+	// we invert addresses 1 meaning we have one as first operand to AND
+	// Then we will get a zero in address 3 yielding the bit string
+	// ADR: 0 1 2   3
+	//      1 1 0   0 = 3 pi(010) = (001)
+	circuit = build_circuit(oe,"//INV(1,1);AND(3,1,2)");
+	pog = PatchOneConstants_New(oe,0);
+	pog->visit(circuit);
+	igv = InputGateVisitor_New(oe);
+	input_gates = igv->visit(circuit);
+	emiter = EvaluationStringEmitter_New(oe,input_gates,inputs);
+	er = emiter->visit(circuit);
+
+	gpam = GeneratePermuationsAndMajorities_New(oe,rnd,er->emitted_string);
+	gpam_result = gpam->visit(circuit);
+
+	AssertTrue(er->emitted_string[0] == 3)
+	AssertTrue(circuit->size() > 1)
+	AssertTrue(gpam_result != 0)
+	AssertTrue(gpam_result->aux != 0)
+	AssertTrue(gpam_result->permutations != 0)
+	AssertTrue(gpam_result->majority != 0)
+	// we use the identity permutation for the and gate AND(3,1,2)
+	// so it should be 0
+	AssertTrue(gpam_result->permutations[0] == 1)
+	// we use the identity permutation and because we have all ones
+	// the identity is also good for the majority permutation. !
+	AssertTrue(gpam_result->majority[0] == 0)
+	// the auxiliary data should be 100=4
+	AssertTrue(gpam_result->aux[0] == 4)
+test_end:
+	Circuit_Destroy(oe,&circuit);
+	PatchOneConstants_Destroy(&pog);
+	InputGateVisitor_Destroy(&igv);
+	EvaluationStringEmitter_Destroy(&emiter);
+	EmiterResult_Destroy(oe,&er);
+
+	return ok;
+}
+
+
+
 
 Test tests[] = {
 		{"creating a linear prover.", test_create_linear_prover},
@@ -383,8 +623,18 @@ Test tests[] = {
 		{"Test set bit", test_set_bit},
 		{"Test get bit", test_get_bit},
 		{"test generate perm/maj create", test_generate_perm_and_maj_create},
-		{"generate perm/maj one and gate identity perm", test_permmaj_one_allzero_idperm_and_gate},
-		{"generate perm/maj one and gate perm1", test_permmaj_one_op1one_op2zero_idperm_and_gate},
+		{"generate perm/maj one and gate id perm", test_permmaj_one_allzero_idperm_and_gate},
+		{"generate perm/maj one and gate id perm", test_permmaj_one_op1one_op2one_idperm_and_gate},
+		{"generate perm/maj one and gate perm1  ", test_permmaj_one_op1one_op2zero_perm1_and_gate},
+		{"generate perm/maj one and gate perm2  ", test_permmaj_one_op1one_op2zero_perm2_and_gate},
+		{"generate perm/maj one and gate perm3  ", test_permmaj_one_op1one_op2zero_perm3_and_gate},
+		{"generate perm/maj one and gate perm4  ", test_permmaj_one_op1one_op2zero_perm4_and_gate},
+		{"generate perm/maj one and gate perm5  ", test_permmaj_one_op1one_op2zero_perm5_and_gate},
+		// TODO(rwz): more tests would be nice. E.g.:
+		//  I] test other AND-gate assignments
+		// II] tests with larger circuits e.g. more than one and gate.
+		//III] proof task builder actually builds the right tasks given
+		//     the output from the evaluation emitter.
 
 };
 

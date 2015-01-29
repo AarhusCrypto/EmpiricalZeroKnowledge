@@ -44,4 +44,14 @@ CircuitVisitor InputGateVisitor_New(OE oe);
 // clean up the input gate visitor
 void InputGateVisitor_Destroy(CircuitVisitor * instance);
 
+/**
+ * Compute all gates that are never read and we assume these are
+ * the output gates.
+ *
+ */
+CircuitVisitor OutputGateVisitor_New(OE oe);
+
+// clean up the output gate visitor
+void OutputGateVisitor_Destroy(CircuitVisitor * cv);
+
 #endif /* RTZ14_INCLUDE_CIRCUIT_ANALYSER_H_ */

@@ -2,12 +2,15 @@ include $(top_srcdir)/rtz14.am
 testdir=test
 test_PROGRAMS = test_circuit_parser test_fun_tokenizer \
 test_poc_visitor test_inputgatevisitor test_emittervisitor\
-test_rtz14 test_linear_proof
+test_rtz14 test_linear_proof test_outputgatevisitor
 
-test_linear_proof_SOURCES = test_linear_proof.c
+test_outputgatevisitor_SOURCES = test_outputgatevisitor.c testutils.c 
+test_outputgatevisitor_LDADD = ../src/librtz14.a
+
+test_linear_proof_SOURCES = test_linear_proof.c testutils.c
 test_linear_proof_LDADD = ../src/librtz14.a
 
-test_rtz14_SOURCES = test_rtz14.c
+test_rtz14_SOURCES = test_rtz14.c testutils.c
 test_rtz14_LDADD = ../src/librtz14.a
 
 test_emittervisitor_SOURCES = test_emitter.c

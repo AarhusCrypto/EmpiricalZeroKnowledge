@@ -16,10 +16,6 @@
 typedef struct _emitter_result_ {
 	byte * emitted_string;
 	uint lemitted_string;
-	byte * perms;
-	uint lperms;
-	byte * major;
-	uint lmajor;
 } * EmiterResult;
 
 // clean up emiter result

@@ -9,6 +9,7 @@
 #include <linear_proof.h>
 #include <coov3.h>
 
+#include <rnd.h>
 
 typedef struct _ptb_impl_ {
 	byte * permaj;
@@ -24,6 +25,9 @@ COO_DCL(CircuitVisitor, void *, ptb_visit, List circuit);
 COO_DEF_RET_ARGS(CircuitVisitor, void *, ptb_visit, List circuit;,circuit) {
 	uint i = 0;
 	Ptb impl = this->impl;
+	uint expected_and_count_max = 0;
+	expected_and_count_max = impl->lpermaj*8 + (impl->and_challenge == 0 ? 2 : 1);
+	expected_and_count_max /= (impl->and_challenge == 0 ? 3 : 2);
 
 	if (impl->result) {
 		SingleLinkedList_destroy(&impl->result);
@@ -36,7 +40,8 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ptb_visit, List circuit;,circuit) {
 		Gate g = circuit->get_element(i);
 		if (g->type == G_XOR) { this->visitXor(g); }
 		if (g->type == G_AND) { this->visitAnd(g); }
-		if (impl->and_count > (impl->lpermaj*8+2)/3) {
+
+		if (impl->and_count > expected_and_count_max) {
 			impl->oe->syslog(OSAL_LOGLEVEL_WARN,"More and gates than permutations/majority tests.");
 		}
 	}
@@ -51,6 +56,7 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ptb_visitXor, Gate xor;, xor) {
 	pt->indicies[1] = xor->op1;
 	pt->indicies[2] = xor->op2;
 	pt->value = 0;
+	impl->result->add_element(pt);
 	return 0;
 }
 
@@ -343,7 +349,7 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, gpam_visitAnd, Gate and;, and) {
 	// get uniform random number in [0,..,255]
 	impl->rnd->rand(&r,1);
 
-	// TODO(rwz): Reduce random byte modulo 6 given a small bias to 1,2,3 as 42*6 is 252
+	// TODO(rwz): Reduce random byte modulo 6 gives a small bias to 1,2,3 as 42*6 is 252
 	// therefore 253, 254 and 255 modulo six gives an extra candidate for 1,2,3.
 	//
 	// This can be improved.
@@ -370,12 +376,13 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, gpam_visitAnd, Gate and;, and) {
 	set_bit(impl->result->permutations,impl->and_count*3+2,(r & 0x04) != 0);
 
 	// apply permutation to bits
+	// bits = pi(dst,op1,op2) => (op1,dst,op2)
 	bits[pi[0]] = bit1;
 	bits[pi[1]] = bit2;
 	bits[pi[2]] = bit3;
-	bit1 = bits[0];
-	bit2 = bits[1];
-	bit3 = bits[2];
+	bit1 = bits[0]; // op1
+	bit2 = bits[1]; // dst
+	bit3 = bits[2]; // op2
 
 	// add actual bits to the {aux} data array.
 	set_bit(impl->result->aux,impl->and_count*3,bit1);
@@ -390,32 +397,33 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, gpam_visitAnd, Gate and;, and) {
 		set_bit(impl->result->majority,impl->and_count*2,0);
 		set_bit(impl->result->majority,impl->and_count*2+1,0);
 	}
-
+    // dstop1op2
 	// 1   1   1
 	// bit1bit2bit3
-	if (bit1 == 1 && bit3 == 1) { // both input are one
+	if (bit2 == 1 && bit1 == 1 && bit3 == 1) { // both input are one
 		set_bit(impl->result->majority,impl->and_count*2,0);
 		set_bit(impl->result->majority,impl->and_count*2+1,0);
 	}
 
 	// 0 0 1
-	if (bit2 == 0 && bit3 == 1) {
+	if (bit1 == 0 && bit2 == 0 && bit3 == 1) {
 		set_bit(impl->result->majority,impl->and_count*2,0);
 		set_bit(impl->result->majority,impl->and_count*2+1,0);
 	}
 
+	// dst op1 op2
 	// 0   1   0
 	// bit1bit2bit3
-	if (bit2 == 1 && bit3 == 0) {
+	if (bit1 == 0 && bit2 == 1 && bit3 == 0) {
 		set_bit(impl->result->majority,impl->and_count*2,1);
 		set_bit(impl->result->majority,impl->and_count*2+1,0);
 	}
 
 
 	// 1 0 0
-	if (bit1 == 1 && bit3 == 0) {
+	if (bit1 == 1 && bit2 == 0 && bit3 == 0) {
 		set_bit(impl->result->majority,impl->and_count*2,0);
-		set_bit(impl->result->majority,impl->and_count*2,1);
+		set_bit(impl->result->majority,impl->and_count*2+1,1);
 	}
 
 	impl->and_count += 1;
@@ -427,6 +435,16 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, gpam_visitXor, Gate xor;, xor) {
 return 0;
 }
 
+
+void ProofTask_print(OE oe, ProofTask pt) {
+	byte b[64] = {0};
+	osal_sprintf(b, "ProofTask[{%u,%u,%u},%u]",
+			pt->indicies[0],
+			pt->indicies[1],
+			pt->indicies[2],
+			pt->value);
+	oe->syslog(OSAL_LOGLEVEL_DEBUG,b);
+}
 
 CircuitVisitor GeneratePermuationsAndMajorities_New(OE oe, Rnd rnd, byte * eval_circuit) {
 	CircuitVisitor iface = (CircuitVisitor)oe->getmem(sizeof(*iface));

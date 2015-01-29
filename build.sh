@@ -30,7 +30,7 @@ COLOR_YELLOW="\033[1;33m"
 
 if [ ! -f /bin/bash ]; 
 then
- echo "Error: This IS a Bach script, sh does not cut it."
+ echo "Error: This script requires Bash, sh does not cut it. In particular we need /bin/bash"
  exit -1;
 fi
 

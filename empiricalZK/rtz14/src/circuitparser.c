@@ -140,8 +140,8 @@ COO_DEF_RET_NOARGS(CPI,Gate,parseInv) {
 
 	g->type = G_XOR;
 	g->dst = dst.value.num;
-	g->op1 = src.value.num;
-	g->op2 = -1; // TODO(rwz): We add here the special Heap address -1 which is UINT_MAX
+	g->op1 = -1;
+	g->op2 = src.value.num; // TODO(rwz): We add here the special Heap address -1 which is UINT_MAX
 	// this makes the use of that heap address unavailable to circuit definitions.
 	return g;
 }
@@ -190,6 +190,12 @@ static void print_token(OE oe, Token tok) {
 	oe->p(b);
 }
 
+#define Error(OE,MSG,...) {                  \
+	byte ___b___[512] = {0};                 \
+    osal_sprintf(___b___,(MSG),__VA_ARGS__); \
+    oe->syslog(OSAL_LOGLEVEL_FATAL,___b___); \
+  }
+
 COO_DCL(CircuitParser, List, parseSource, byte * src, uint lsrc);
 COO_DEF_RET_ARGS(CircuitParser, List, parseSource, byte * src; uint lsrc;, src,lsrc) {
 	char msg[64] = {0};
@@ -208,6 +214,7 @@ COO_DEF_RET_ARGS(CircuitParser, List, parseSource, byte * src; uint lsrc;, src,l
 		case XOR: {
 			Gate g = cpi->parseXor();
 			if (g == 0) {
+				Error(oe,"Error: [%u:%u] could not parse XOR gate.",tok.location.line,tok.location.linepos);
 				return result;
 			}
 			result->add_element(g);
@@ -216,6 +223,7 @@ COO_DEF_RET_ARGS(CircuitParser, List, parseSource, byte * src; uint lsrc;, src,l
 		case AND: {
 			Gate g = cpi->parseAnd();
 			if (g == 0) {
+				Error(oe,"Error: [%u:%u] could not parse AND gate.",tok.location.line,tok.location.linepos);
 				return result;
 			}
 			result->add_element(g);
@@ -224,13 +232,16 @@ COO_DEF_RET_ARGS(CircuitParser, List, parseSource, byte * src; uint lsrc;, src,l
 		case INV: {
 			Gate g = cpi->parseInv();
 			if (g == 0) {
+				Error(oe,"Error: [%u:%u] could not parse INV gate.",tok.location.line,tok.location.linepos);
 				return result;
 			}
 			result->add_element(g);
 			break;
 		}
 		case DONE:
+			break;
 		case ERROR:
+			Error(oe,"Error: [%u:%u] Syntax error",tok.location.line,tok.location.linepos);
 			break;
 		default: {
 			/*

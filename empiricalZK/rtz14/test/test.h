@@ -19,6 +19,8 @@ typedef struct _test_ {
 	osal_sprintf(_________b,FMT,##__VA_ARGS__);\
 	(OE)->p(_________b);\
 }
+#define AssertTrue(COND) \
+	if (( ok &= (COND)) != 1) goto test_end;
 
 #define TEST_MAIN \
 		int main(int c, char ** a) {\

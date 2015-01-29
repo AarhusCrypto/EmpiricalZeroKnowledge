@@ -29,6 +29,11 @@ typedef struct _proof_task_ {
 } * ProofTask;
 
 /**
+ * Print proof tasks to the log on level debug.
+ */
+void ProofTask_print(OE oe, ProofTask pt);
+
+/**
  * proof tasks are created as a list by the visit method of the proof task builder. For
  * convenience we provide a way to clean that up easily.
  *

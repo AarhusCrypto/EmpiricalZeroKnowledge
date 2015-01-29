@@ -13,6 +13,7 @@ typedef struct _evaluation_string_emitted_ {
   byte * input;
   Map input_gates;
   uint no_and_gates;
+  uint next_input;
 } * ESEVisitor;
 
 static inline byte get_bit(byte * bita, uint idx) {
@@ -32,6 +33,18 @@ static inline void set_bit(byte * bita, uint idx, byte bit) {
 		bita[byte_idx] &= ~mask;
 }
 
+/*
+ * Implementation note:
+ *
+ * The ESEVisitor takes input bits in the order of appearance of the free address
+ * in the circuit (which is a sequence of gates, read list).
+ *
+ */
+static byte esev_next_input_bit(ESEVisitor e) {
+	byte r = get_bit(e->input,e->next_input);
+	e->next_input += 1;
+	return r;
+}
 
 COO_DCL(CircuitVisitor, void *, ese_visit, List circuit);
 COO_DEF_RET_ARGS(CircuitVisitor, void *, ese_visit, List circuit;,circuit) {
@@ -54,7 +67,7 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ese_visit, List circuit;,circuit) {
 
 
 
-	lbit_string = circuit->size()*3+3*no_ands;
+	lbit_string = circuit->size()+e->input_gates->size();
 	e->no_and_gates = 0;
 
 	e->bit_string = e->oe->getmem((lbit_string+7)/8); // ceil(lbit_string/8)
@@ -67,6 +80,7 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ese_visit, List circuit;,circuit) {
 	}
 
 	er->emitted_string = e->bit_string;
+	er->lemitted_string = (lbit_string+7)/8;
 
 	return er;
 }
@@ -79,24 +93,24 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ese_visit_and, Gate and;,and) {
 	byte op1 = 0, op2 = 0, res = 0;
 
 
-	if (e->input_gates->contains(and->op1) == True) {
-		op1 = get_bit(e->input, and->op1);
+	if (e->input_gates->contains((void*)(ull)and->op1) == True) {
+		op1 = esev_next_input_bit(e);
 		set_bit(e->bit_string,and->op1,op1);
-		e->input_gates->rem(and->op1);
+		e->input_gates->rem((void*)(ull)and->op1);
 	} else {
 		op1 = get_bit(e->bit_string,and->op1);
 	}
 
-	if (e->input_gates->contains(and->op2) == True) {
-		op2 = get_bit(e->input, and->op2);
+	if (e->input_gates->contains((void*)(ull)and->op2) == True) {
+		op2 = esev_next_input_bit(e);
 		set_bit(e->bit_string,and->op2,op2);
-		e->input_gates->rem(and->op2);
+		e->input_gates->rem((void*)(ull)and->op2);
 	} else {
 		op2 = get_bit(e->bit_string, and->op2);
 	}
 
 	set_bit(e->bit_string,and->dst,op1 & op2);
-	e->input_gates->rem(and->dst);
+	e->input_gates->rem((void*)(ull)and->dst);
 
 
 
@@ -110,24 +124,24 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ese_visit_xor, Gate xor;,xor) {
 	e->no_and_gates += 1;
 	byte op1 = 0, op2 = 0, res = 0;
 
-	if (e->input_gates->contains(xor->op1) == True) {
-		op1 = get_bit(e->input, xor->op1);
+	if (e->input_gates->contains((void*)(ull)xor->op1) == True) {
+		op1 = esev_next_input_bit(e);
 		set_bit(e->bit_string,xor->op1,op1);
-		e->input_gates->rem(xor->op1);
+		e->input_gates->rem( (void*)(ull)xor->op1);
 	} else {
 		op1 = get_bit(e->bit_string,xor->op1);
 	}
 
-	if (e->input_gates->contains(xor->op2) == True) {
-		op2 = get_bit(e->input, xor->op2);
+	if (e->input_gates->contains((void*)(ull)xor->op2) == True) {
+		op2 = esev_next_input_bit(e);
 		set_bit(e->bit_string,xor->op2,op2);
-		e->input_gates->rem(xor->op2);
+		e->input_gates->rem((void*)(ull)xor->op2);
 	} else {
 		op2 = get_bit(e->bit_string, xor->op2);
 	}
 
 	set_bit(e->bit_string,xor->dst,op1 ^ op2);
-	e->input_gates->rem(xor->dst);
+	e->input_gates->rem((void*)(ull)xor->dst);
 
 	return 0;
 }
@@ -136,6 +150,16 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ese_visit_xor, Gate xor;,xor) {
 CircuitVisitor EvaluationStringEmitter_New(OE oe, Map input_gates, byte * input) {
 	CircuitVisitor cv = 0;
 	ESEVisitor esev = 0;
+
+	if (!oe) return 0;
+	if (!input_gates) {
+		oe->syslog(OSAL_LOGLEVEL_WARN,"input_gates is not set cannot create EvaluationStringEmitter.");
+		return 0;
+	}
+	if (!input) {
+		oe->syslog(OSAL_LOGLEVEL_WARN,"input parameters in not set cannot create EvaluationStringEmitter.");
+		return 0;
+	}
 
 	cv = oe->getmem(sizeof(*cv));
 	if (!cv) return 0;
@@ -147,6 +171,7 @@ CircuitVisitor EvaluationStringEmitter_New(OE oe, Map input_gates, byte * input)
 	esev->input_gates = input_gates;
 	esev->bit_string = 0;
 	esev->input = input;
+	esev->next_input = 0;
 	cv->impl = esev;
 
 	COO_ATTACH_FN(CircuitVisitor,cv,visit,ese_visit);
@@ -184,7 +209,5 @@ void EmiterResult_Destroy(OE oe, EmiterResult * er) {
 	e = *er;
 	*er = 0; // detach before freeing
 	oe->putmem(e->emitted_string);
-	oe->putmem(e->major);
-	oe->putmem(e->perms);
 	oe->putmem(e);
 }

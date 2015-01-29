@@ -245,3 +245,112 @@ void InputGateVisitor_Destroy(CircuitVisitor * cv_) {
 	oe->putmem(cv);
 	oe->putmem(igv);
 }
+
+
+typedef struct _output_gate_visitor_impl_ {
+	OE oe ;
+	Map gates_read;
+} * OGVImpl;
+
+
+COO_DCL(CircuitVisitor, void *, ogv_visitAnd, Gate and);
+COO_DEF_RET_ARGS(CircuitVisitor, void *, ogv_visitAnd , Gate and;, and) {
+	OGVImpl ogv = (OGVImpl)this->impl;
+
+	if (ogv->gates_read->contains((void*)(ull)and->op1) == False) {
+		ogv->gates_read->put((void*)(ull)and->op1, and);
+	}
+
+	if (!ogv->gates_read->contains((void*)(ull)and->op2) == False) {
+		ogv->gates_read->put((void*)(ull)and->op2,and);
+	}
+
+	return 0;
+}
+
+
+COO_DCL(CircuitVisitor, void *, ogv_visitXor, Gate xor);
+COO_DEF_RET_ARGS(CircuitVisitor, void *, ogv_visitXor , Gate xor;, xor) {
+	OGVImpl ogv = (OGVImpl)this->impl;
+
+	if (ogv->gates_read->contains((void*)(ull)xor->op1) == False) {
+		ogv->gates_read->put((void*)(ull)xor->op1, xor);
+	}
+
+	if (!ogv->gates_read->contains((void*)(ull)xor->op2) == False) {
+		ogv->gates_read->put((void*)(ull)xor->op2,xor);
+	}
+
+	return 0;
+}
+
+
+COO_DCL(CircuitVisitor, void *, ogv_visit, List circuit);
+COO_DEF_RET_ARGS(CircuitVisitor, void *, ogv_visit , List circuit;, circuit) {
+	OGVImpl ogv = (OGVImpl)this->impl;
+	uint i = 0;
+	Map h = HashMap_new(ogv->oe, locate_hash, locate_cmp, 1024);
+	List res = 0 ;
+
+	for(i = 0; i < circuit->size();++i) {
+		Gate g = circuit->get_element(i);
+		if (h->contains( (void*)(ull)g->op1) == True) {
+			h->rem( (void*)(ull)g->op1);
+		}
+
+		if (h->contains( (void*)(ull)g->op2) == True) {
+			h->rem( (void*)(ull)g->op2);
+		}
+
+		if (h->contains( (void*)(ull)g->dst) == False) {
+			h->put( (void*)(ull)g->dst, g);
+		}
+
+	}
+	res = h->get_keys();
+	HashMap_destroy(&h);
+	return res;
+}
+
+CircuitVisitor OutputGateVisitor_New(OE oe) {
+	CircuitVisitor res = (CircuitVisitor)oe->getmem(sizeof(*oe));
+	OGVImpl impl = 0;
+
+	if (!res) return 0;
+	impl = (OGVImpl)oe->getmem(sizeof(*impl));
+
+	if (!impl) return 0;
+
+	impl->oe = oe;
+	res->impl = impl;
+
+	COO_ATTACH_FN(CircuitVisitor, res, visit, ogv_visit);
+	COO_ATTACH_FN(CircuitVisitor, res, visitAnd, ogv_visitAnd);
+	COO_ATTACH_FN(CircuitVisitor, res, visitXor, ogv_visitXor);
+
+	return res;
+}
+
+void OutputGateVisitor_Destroy(CircuitVisitor * cv) {
+	CircuitVisitor c = 0;
+	OGVImpl ogv = 0;
+	OE oe = 0;
+
+	if (!cv) return ;
+
+	if (!*cv) return ;
+
+	c = *cv;
+	ogv = c->impl;
+	oe = ogv->oe;
+
+	COO_DETACH(c,visit);
+	COO_DETACH(c,visitAnd);
+	COO_DETACH(c,visitXor);
+
+	HashMap_destroy(&ogv->gates_read);
+	oe->putmem(c);
+	oe->putmem(ogv);
+
+	*cv = 0;
+}
