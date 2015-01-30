@@ -167,6 +167,7 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 	GPam gpam_res = 0;
 	DateTime d = DateTime_New(oe);
 	ull start = d->getMilliTime();
+	uint out_gate = 0;
 	_Bool accept = 0;
 
 
@@ -201,8 +202,10 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 		oe->syslog(OSAL_LOGLEVEL_FATAL,"The provided circuit does not have one unique output.");
 		return False;
 	}
+	out_gate = output_gates->get_element(0);
 
 	OutputGateVisitor_Destroy(&ogv);
+	SingleLinkedList_destroy(&output_gates);
 
 	// go online
 	conn = CArena_new(oe);

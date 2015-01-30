@@ -10,6 +10,7 @@
 #include <circuit_analyser.h>
 #include <map.h>
 #include <datetime.h>
+#include <hashmap.h>
 
 static int test_create_input_gate_create(OE oe) {
 	CircuitVisitor cv = InputGateVisitor_New(oe);
