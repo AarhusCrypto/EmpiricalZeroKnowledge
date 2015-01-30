@@ -72,7 +72,7 @@ static Ce find_free_slot() {
 		curadr = (void*)(((byte*)coov3_base_address) + STUB_SIZE*i);
 	} while(++i < coov3_fkt_max);
 
-	printf("Coo has reached the maximal number of functions that can be allocated.");
+	printf("Coo has reached the maximal number of functions that can be allocated.\n");
 	return 0;
 }
 

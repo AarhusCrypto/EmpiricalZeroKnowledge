@@ -885,7 +885,7 @@ OE OperatingEnvironment_LinuxNew() {
   if (!oe) return 0;
   zeromem(oe,sizeof(*oe));
   
-  InitializeCOO(10240*3	,mem);
+  InitializeCOO(10240*5	,mem);
 
   COO_ATTACH(OE, oe, set_log_file);
   COO_ATTACH(OE, oe, get_version);

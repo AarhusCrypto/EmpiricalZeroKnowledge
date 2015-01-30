@@ -8,6 +8,7 @@
 #ifndef RTZ14_TEST_TEST_H_
 #define RTZ14_TEST_TEST_H_
 #include <osal.h>
+#include <datetime.h>
 typedef struct _test_ {
 	char * name;
 	int (*run)(OE oe);
@@ -27,9 +28,12 @@ typedef struct _test_ {
 			char b[42] = {0};\
 			uint i = 0;\
 			uint failed_tests = 0;\
+			ull start = 0; \
 			OE oe = OperatingEnvironment_LinuxNew();\
+			DateTime dt = DateTime_New(oe);\
 			osal_sprintf(b,"Running %d tests.",sizeof(tests)/sizeof(Test));\
 			oe->p(b);\
+			start = dt->getMilliTime();\
 			for(i = 0; i < sizeof(tests)/sizeof(Test);++i) {\
 				char buf[512] = {0};\
 				int res = tests[i].run(oe);\
@@ -42,6 +46,9 @@ typedef struct _test_ {
 					++failed_tests;\
 				}\
 			}\
+			zeromem(b,42);\
+			osal_sprintf(b,"%u test where %u failed ran in %lu ms",sizeof(tests)/sizeof(Test),failed_tests,dt->getMilliTime()-start);\
+			oe->p(b);\
 			return failed_tests;\
 		}
 

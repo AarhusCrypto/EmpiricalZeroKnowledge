@@ -150,7 +150,7 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 
 	Rtz14Impl impl = (Rtz14Impl)this->impl;
 	OE oe = impl->oe;
-	Map input_gates = 0;
+	List input_gates = 0;
 	CircuitVisitor emitter = 0;
 	// TODO(rwz): take the igv as constructor argument.
 	CircuitVisitor igv = 0;
@@ -161,6 +161,8 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 	List proof_tasks = 0;
 	CircuitVisitor gpam = 0;
 	CircuitVisitor poc = 0;
+	CircuitVisitor ogv = 0;
+	List output_gates = 0;
 	Rnd rnd = 0;
 	GPam gpam_res = 0;
 	DateTime d = DateTime_New(oe);
@@ -186,6 +188,21 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 
 	input_gates = igv->visit(circuit);
 	if (!input_gates) return False;
+
+	ogv = OutputGateVisitor_New(oe);
+	if (!ogv) return False;
+
+	output_gates = ogv->visit(circuit);
+	if (!output_gates) {
+		return False;
+	}
+
+	if (output_gates->size() != 1) {
+		oe->syslog(OSAL_LOGLEVEL_FATAL,"The provided circuit does not have one unique output.");
+		return False;
+	}
+
+	OutputGateVisitor_Destroy(&ogv);
 
 	// go online
 	conn = CArena_new(oe);

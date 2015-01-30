@@ -37,12 +37,15 @@ static int test_find_one_input_for_xor(OE oe) {
 	cv = InputGateVisitor_New(oe);
 	input_gates = cv->visit(circuit);
 
+	AssertTrue(input_gates != 0)
 	address_of_input_gates = input_gates->get_keys();
 
-	ok = input_gates != 0 && input_gates->size() == 1 && (uint)address_of_input_gates->get_element(0) == 1;
+	AssertTrue(((uint)address_of_input_gates->get_element(0) == 1));
 
+	InputGateVisitor_Destroy(&cv);
+	SingleLinkedList_destroy(&address_of_input_gates);
 
-
+test_end:
 	return ok;
 }
 
@@ -51,7 +54,6 @@ static int test_find_two_input_for_xor(OE oe) {
 	CircuitParser cp = 0;
 	Tokenizer tk = 0;
 	List circuit = 0;
-	Map input_gates = 0;
 	List address_of_input_gates = 0;
 	Gate g = 0;
 	_Bool ok = 0;
@@ -61,14 +63,13 @@ static int test_find_two_input_for_xor(OE oe) {
 	circuit = cp->parseSource((byte*)"XOR(0,1,0)",11);
 
 	cv = InputGateVisitor_New(oe);
-	input_gates = cv->visit(circuit);
+	address_of_input_gates = cv->visit(circuit);
 
-	address_of_input_gates = input_gates->get_keys();
 
-	ok = input_gates != 0 && input_gates->size() == 2 &&
-			(uint)address_of_input_gates->get_element(0) == 1 &&
-			(uint)address_of_input_gates->get_element(1) == 0;
+	AssertTrue((uint)address_of_input_gates->get_element(0) == 1)
+	AssertTrue((uint)address_of_input_gates->get_element(1) == 0);
 
+test_end:
 	return ok;
 }
 
@@ -102,8 +103,8 @@ static int test_find_two_input_for_and(OE oe) {
 	CircuitParser cp = 0;
 	Tokenizer tk = 0;
 	List circuit = 0;
-	Map input_gates = 0;
 	List address_of_input_gates = 0;
+	Map input_gates = 0;
 	Gate g = 0;
 	_Bool ok = 0;
 
@@ -114,19 +115,22 @@ static int test_find_two_input_for_and(OE oe) {
 	cv = InputGateVisitor_New(oe);
 	input_gates = cv->visit(circuit);
 
+	AssertTrue(input_gates != 0)
 	address_of_input_gates = input_gates->get_keys();
 
-	g = input_gates->get(address_of_input_gates->get_element(0));
+	AssertTrue(	(uint)address_of_input_gates->get_element(0) == 1  );
+	AssertTrue( (uint)address_of_input_gates->get_element(1) == 0  );
 
-
-	ok = g->type == G_AND && input_gates != 0 && input_gates->size() == 2 &&
-			(uint)address_of_input_gates->get_element(0) == 1 &&
-			(uint)address_of_input_gates->get_element(1) == 0;
-
+	HashMap_destroy(&input_gates);
+	Circuit_Destroy(oe,&circuit);
+	SingleLinkedList_destroy(&address_of_input_gates);
+	InputGateVisitor_Destroy(&cv);
+test_end:
 	return ok;
 }
 
 static int test_large_file(OE oe) {
+	_Bool ok = 1;
 	uint lbuffer = 1060365;
 	uint ands = 0, xors = 0, nums = 0, tokens = 0;
 	Tokenizer tk = 0;CircuitParser cp = 0;
@@ -135,6 +139,7 @@ static int test_large_file(OE oe) {
 	uint fp = oe->open("file ../test/AES"), i = 0;
 	CircuitVisitor cv = InputGateVisitor_New(oe);
 	Map input_gates = 0;
+	List aoig = 0;
 	DateTime clock = 0;
 	ull start = 0;
 	clock = DateTime_New(oe);
@@ -149,13 +154,19 @@ static int test_large_file(OE oe) {
 	DBG_P(oe,"parsing circuit took %u microseconds.",clock->getMicroTime()-start);
 	oe->putmem(buffer);
 
+
 	start = clock->getMicroTime();
 	input_gates = cv->visit(ast);
-	if (input_gates) {
-		DBG_P(oe,"#Input: %u analysis took %u microseconds",input_gates->size(),clock->getMicroTime()-start);
+	AssertTrue(input_gates != 0)
+
+	aoig = input_gates->get_keys();
+	if (aoig) {
+		DBG_P(oe,"#Input: %u analysis took %u microseconds",aoig->size(),clock->getMicroTime()-start);
 	}
 
-	return input_gates != 0;
+	AssertTrue( aoig != 0 );
+	test_end:
+	return ok;
 }
 
 Test tests[] = {

@@ -182,6 +182,16 @@ COO_DCL(CircuitVisitor, void *, igv_visit, List circuit);
 COO_DEF_RET_ARGS(CircuitVisitor, void *, igv_visit, List circuit;, circuit) {
 	uint i = 0;
 	IGVisitor igv = this->impl;
+	Map result = 0;
+
+	if (!igv->input_locations) {
+		igv->input_locations = HashMap_new(igv->oe,locate_hash, locate_cmp, 64);
+	}
+
+	if (!igv->write_locations) {
+		igv->write_locations = HashMap_new(igv->oe, locate_hash,locate_cmp,64);
+	}
+
 	for(i = 0; i < circuit->size();++i) {
 		Gate g = circuit->get_element(i);
 		List input_g = 0;
@@ -198,9 +208,13 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, igv_visit, List circuit;, circuit) {
 		}
 		}
 	}
-	// TODO(rwz): Cleaned by destructor not optimal :(
-	// client code may still hold on to the map, no?
-	return igv->input_locations;
+
+
+	// Return ownership to the caller
+	HashMap_destroy(&igv->write_locations);
+	result = igv->input_locations;
+	igv->input_locations = 0;
+	return result;
 }
 
 CircuitVisitor InputGateVisitor_New(OE oe) {
@@ -213,8 +227,6 @@ CircuitVisitor InputGateVisitor_New(OE oe) {
 	if (!igv) goto error;
 
 	igv->oe = oe;
-	igv->write_locations = HashMap_new(oe, locate_hash,locate_cmp,64);
-	igv->input_locations = HashMap_new(oe, locate_hash,locate_cmp,64);
 
 	COO_ATTACH_FN(CircuitVisitor, cv, visitAnd, igv_visit_and);
 	COO_ATTACH_FN(CircuitVisitor, cv, visitXor, igv_visit_xor);

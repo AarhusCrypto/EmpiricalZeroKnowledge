@@ -62,7 +62,7 @@ typedef struct _test_args_ {
 static void * test_run_proof_one_and_verifier(TestArgs * args) {
 	uint i = 1;
 	args->oe->p("Verfier thread is alive.");
-	while(i++ < 1073741824/4);;
+	while(i++ < 1073741824/2);;
 	args->rtz->executeProof(args->circuit,0,"127.0.0.1",2020);
 	return 0;
 }
@@ -216,7 +216,7 @@ static int run_protocol_on_aes(OE oe) {
 	TestArgs args = {0};
 	ThreadID tid = 0;
 	byte * buf = 0;
-	uint lbuf = 1060365;
+	uint lbuf = 1093096;
 	uint fp = 0;
 	witness[256] = 1;
 	buf = oe->getmem(lbuf);
@@ -231,7 +231,7 @@ static int run_protocol_on_aes(OE oe) {
 	AssertTrue(cp != 0)
 	cs = DummyScheme_New(oe);
 	AssertTrue(cs != 0)
-	rnd = (Rnd)TestRnd_New(oe,0x00);
+	rnd = (Rnd)TestRnd_New(oe,0x55);
 	AssertTrue(rnd != 0)
 	rtz_prover = Rtz14_New(oe, rnd, cs, aoo);
 	AssertTrue(rtz_prover != 0)
