@@ -30,7 +30,7 @@ static void print_bit_string(OE oe, Data bs) {
 	uint length = (sizeof(buf)-2) > bs->ldata*8 ? bs->ldata*8 : sizeof(buf)-2;
 
 	AddCh(buf,'\n',idx);
-	for(i = 0; i < bs->ldata*8 && idx < length-4;++i) {
+	for(i = 0; i < bs->ldata*8 && idx < sizeof(buf)-2;++i) {
 		byte bit = get_bit(bs->data,i);
 		// add white space
 		if (i > 0 && i % 24 == 0) {
@@ -130,10 +130,11 @@ static Data build_delta_string(OE oe, List proof_tasks, XORcommitResult xom, byt
 	Data result = Data_new(oe,(proof_tasks->size()+7)/8);
 	uint i =0 ;
 	for (i = 0; i < proof_tasks->size();++i) {
-		ProofTask pt = proof_tasks->get_element(0);
+		ProofTask pt = proof_tasks->get_element(i);
 		uint j = 0;
 		byte delta = 0;
-		for( j = 0; j < (and_challenge == 0 ? 3 : 2);++j) {
+		uint lind = pt->value >> 1;
+		for( j = 0; j < lind;++j) {
 			delta ^= get_bit(xom->m0,pt->indicies[j]);
 		}
 		set_bit(result->data,i,delta);
@@ -150,7 +151,7 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 
 	Rtz14Impl impl = (Rtz14Impl)this->impl;
 	OE oe = impl->oe;
-	List input_gates = 0;
+	Map input_gates = 0;
 	CircuitVisitor emitter = 0;
 	// TODO(rwz): take the igv as constructor argument.
 	CircuitVisitor igv = 0;
@@ -167,8 +168,10 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 	GPam gpam_res = 0;
 	DateTime d = DateTime_New(oe);
 	ull start = d->getMilliTime();
-	uint out_gate = 0;
+	uint no_inputs = 0;
+
 	_Bool accept = 0;
+	ProofTask check_out_bit = (ProofTask)oe->getmem(sizeof(*check_out_bit));
 
 
 	// create and call helper strategies
@@ -189,6 +192,7 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 
 	input_gates = igv->visit(circuit);
 	if (!input_gates) return False;
+	no_inputs = input_gates->size();
 
 	ogv = OutputGateVisitor_New(oe);
 	if (!ogv) return False;
@@ -202,10 +206,15 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 		oe->syslog(OSAL_LOGLEVEL_FATAL,"The provided circuit does not have one unique output.");
 		return False;
 	}
-	out_gate = output_gates->get_element(0);
+	check_out_bit->indicies[0] = output_gates->get_element(0);
+	check_out_bit->indicies[1] = impl->address_of_one;
+	check_out_bit->indicies[2] = impl->address_of_one;
+
 
 	OutputGateVisitor_Destroy(&ogv);
 	SingleLinkedList_destroy(&output_gates);
+
+
 
 	// go online
 	conn = CArena_new(oe);
@@ -252,23 +261,21 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 
 		// create message
 		{
-			uint message_size = 0;
-			uint idx = 0;
-			// the message size in bits is: |circuit| + |inputs| + |aux|
-			// where |aux| = #AND_GATES*3
-			message_size += emitter_res->lemitted_string;
-			message_size += (gpam_res->no_ands*3+7)/8; // three bits aux-info per and gate.
-
-			message = Data_new(oe,message_size);
-			UserReport(oe,"[prover] entire message that we commit to:");
-			mcpy(message->data+idx,emitter_res->emitted_string,emitter_res->lemitted_string);
-			idx+=emitter_res->lemitted_string;
-			mcpy(message->data+idx,gpam_res->aux,(gpam_res->no_ands*3+7)/8);
-			print_bit_string(oe,Data_shallow(emitter_res->emitted_string,emitter_res->lemitted_string));
-			print_bit_string(oe,Data_shallow(gpam_res->aux, (gpam_res->no_ands*3+7)/8));
-			print_bit_string(oe,message);
-
+			uint bit_i = 0;
+			uint aux_bit_len = gpam_res->no_ands*3;
+			uint emitted_string_bit_len = circuit->size() + no_inputs;
+			uint bit_l = emitted_string_bit_len + aux_bit_len;
+			message = Data_new(oe,(bit_l+7)/8);
+			for(bit_i = 0; bit_i < bit_l;++bit_i) {
+				if (bit_i < emitted_string_bit_len) {
+					set_bit(message->data,bit_i,get_bit(emitter_res->emitted_string,bit_i));
+				} else {
+					set_bit(message->data,bit_i,get_bit(gpam_res->aux,bit_i-emitted_string_bit_len));
+				}
+			}
 		}
+		UserReport(oe, "Bit String Committed to: ");
+		print_bit_string(oe,message);
 
 		// inform the user what is happening
 		UserReport(oe,"[%lums] Prover is Online and ready, awaiting Verifier to connect ... ",d->getMilliTime()-start);
@@ -304,25 +311,29 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 		verifier->receive(Data_shallow(and_challenge,1));
 		UserReport(oe,"[%lums] %s",d->getMilliTime()-start,"Received and challenge");
 
+
+
 		// send permutation or majority tests
 		if (and_challenge[0] == 0) {
+			check_out_bit->value = 3;
 			verifier->send(Data_shallow(gpam_res->permutations,(gpam_res->no_ands*3+7)/8));
 			proof_task_builder = ProofTaskBuilder_New(oe,and_challenge[0],gpam_res->permutations,(gpam_res->no_ands*3+7)/8);
 		} else {
 			verifier->send(Data_shallow(gpam_res->majority,(gpam_res->no_ands*2+7)/8));
 			proof_task_builder = ProofTaskBuilder_New(oe,and_challenge[0],gpam_res->majority,(gpam_res->no_ands*2+7)/8);
+			check_out_bit->value = 2;
 		}
 
 		// build linear proof tasks
 		proof_tasks = proof_task_builder->visit(circuit);
 		UserReport(oe,"[%lums] %u %s",d->getMilliTime()-start,proof_tasks->size(),
-				      "Proof Tasks computed ...");
+				"Proof Tasks computed ...");
+		proof_tasks->add_element(check_out_bit);
 		{
 			uint i = 0;
 			for(i = 0; i < proof_tasks->size();++i) {
 				ProofTask_print(oe,proof_tasks->get_element(i));
 			}
-
 		}
 
 		// build delta string
@@ -446,6 +457,14 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 		UserReport(oe,"[%lums] %u %s", d->getMilliTime()-start,proof_tasks->size(),
 				      "Proof Tasks built...");
 
+		if (and_challenge->data[0] == 0) {
+			check_out_bit->value = 3;
+			proof_tasks->add_element(check_out_bit);
+		} else {
+			check_out_bit->value = 2;
+		}
+
+
 		// --- Do linear proofs ---
 
 		// --- Receive Delta ---
@@ -466,21 +485,23 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 		UserReport(oe,"%lums] %s",  d->getMilliTime()-start, "Delta:");
 		print_bit_string(oe,delta);
 
+		UserReport(oe,"m_challenge = %u",m_challenge->ldata);
+		print_bit_string(oe,m_challenge);
 		accept = True;
 		for(i = 0; i < proof_tasks->size();++i) {
 			byte xor = 0;
+			byte b = 0;
 			uint j = 0;
 			ProofTask cur = proof_tasks->get_element(i);
 			uint * indicies = (uint *)&cur->indicies;
-			uint lindicies = and_challenge->data[0] == 1 ? 2 : 3;
+			uint lindicies = cur->value >> 1;
+			b = (cur->value & 0x01);
 			for(j = 0;j < lindicies;++j) {
 				uint index_j = (uint)indicies[j];
 				xor ^= get_bit(m_challenge->data,index_j);
 			}
 
-			// this is the equality test which is the only thing
-			// this implementation needs to far !
-			if (xor != (byte)get_bit(delta->data,i)) {
+			if (xor != ((byte)get_bit(delta->data,i) ^ (challenge->data[0] & b))) {
 				accept = False;
 			}
 		}
@@ -496,6 +517,13 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 		}
 		UserReport(oe,"[%lums] %s", d->getMilliTime()-start,"Verifier Done.");
 	}
+
+	{
+		byte aes[] = {0x66,0xE9,0x4B,0xD4,0xEF,0x8A,0x2C,0x3B,0x88,0x4C,0xFA,0x59,0xCA,0x34,0x2B,0x2E};
+		UserReport(oe,"These are the bits we are looking for !")
+		print_bit_string(oe,Data_shallow(aes,sizeof(aes)));
+	}
+
 
 	// close all connections.
 	CArena_destroy(&conn);

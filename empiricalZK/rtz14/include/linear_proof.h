@@ -25,6 +25,8 @@
  */
 typedef struct _proof_task_ {
 	uint indicies[3];
+	// value can be either 0 or 1 which we will encode in the least significant bit
+	// the next two bits indicate the length of indicies. e.g. value/2 == lengthof(indicies);
 	byte value;
 } * ProofTask;
 

@@ -55,7 +55,7 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ptb_visitXor, Gate xor;, xor) {
 	pt->indicies[0] = xor->dst;
 	pt->indicies[1] = xor->op1;
 	pt->indicies[2] = xor->op2;
-	pt->value = 0;
+	pt->value = 0+3*2;
 	impl->result->add_element(pt);
 	return 0;
 }
@@ -171,12 +171,15 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ptb_visitAnd, Gate and;, and) {
 
 		eq1->indicies[0] = and->dst;
 		eq1->indicies[1] = impl->and_count*3 + impl->circuit_size*3+indx[0];
+		eq1->value = 4;
 
 		eq2->indicies[0] = and->op1;
 		eq2->indicies[1] = impl->and_count*3 + impl->circuit_size*3+indx[1];
+		eq2->value = 4;
 
 		eq3->indicies[0] = and->op2;
 		eq3->indicies[1] = impl->and_count*3 + impl->circuit_size*3+indx[2];
+		eq3->value = 4;
 
 		impl->result->add_element(eq1);
 		impl->result->add_element(eq2);
@@ -192,9 +195,11 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ptb_visitAnd, Gate and;, and) {
 
 		eq1->indicies[0] = and->op1;
 		eq1->indicies[1] = impl->and_count*2 + impl->circuit_size*3 + indx[0];
+		eq1->value = 4;
 
 		eq2->indicies[0] = and->op2;
 		eq2->indicies[1] = impl->and_count*2 + impl->circuit_size*3 + indx[1];
+		eq2->value = 4;
 
 		impl->result->add_element(eq1);
 		impl->result->add_element(eq2);
