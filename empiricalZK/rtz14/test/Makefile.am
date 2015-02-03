@@ -2,7 +2,11 @@ include $(top_srcdir)/rtz14.am
 testdir=test
 test_PROGRAMS = test_circuit_parser test_fun_tokenizer \
 test_poc_visitor test_inputgatevisitor test_emittervisitor\
-test_rtz14 test_linear_proof test_outputgatevisitor
+test_rtz14 test_linear_proof test_outputgatevisitor\
+test_hashcommit
+
+test_hashcommit_SOURCES = test_hashcommit.c testutils.c
+test_hashcommit_LDADD = ../src/librtz14.a
 
 test_outputgatevisitor_SOURCES = test_outputgatevisitor.c testutils.c 
 test_outputgatevisitor_LDADD = ../src/librtz14.a

@@ -17,6 +17,7 @@ typedef struct _ptb_impl_ {
 	byte and_challenge;
 	uint and_count;
 	uint circuit_size;
+	uint no_inputs;
 	List result;
 	OE oe ;
 } * Ptb;
@@ -170,15 +171,15 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ptb_visitAnd, Gate and;, and) {
 		apply_permutation(impl->oe,impl->permaj,impl->lpermaj,indx,impl->and_count);
 
 		eq1->indicies[0] = and->dst;
-		eq1->indicies[1] = impl->and_count*3 + impl->circuit_size*3+indx[0];
+		eq1->indicies[1] = impl->and_count*3 + impl->circuit_size+impl->no_inputs+indx[0];
 		eq1->value = 4;
 
 		eq2->indicies[0] = and->op1;
-		eq2->indicies[1] = impl->and_count*3 + impl->circuit_size*3+indx[1];
+		eq2->indicies[1] = impl->and_count*3 + impl->circuit_size+impl->no_inputs+indx[1];
 		eq2->value = 4;
 
 		eq3->indicies[0] = and->op2;
-		eq3->indicies[1] = impl->and_count*3 + impl->circuit_size*3+indx[2];
+		eq3->indicies[1] = impl->and_count*3 + impl->circuit_size+impl->no_inputs+indx[2];
 		eq3->value = 4;
 
 		impl->result->add_element(eq1);
@@ -194,11 +195,11 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ptb_visitAnd, Gate and;, and) {
 		apply_majority(impl->oe, impl->permaj,impl->lpermaj, indx, impl->and_count);
 
 		eq1->indicies[0] = and->op1;
-		eq1->indicies[1] = impl->and_count*2 + impl->circuit_size*3 + indx[0];
+		eq1->indicies[1] = impl->and_count*2 + impl->circuit_size+impl->no_inputs + indx[0];
 		eq1->value = 4;
 
 		eq2->indicies[0] = and->op2;
-		eq2->indicies[1] = impl->and_count*2 + impl->circuit_size*3 + indx[1];
+		eq2->indicies[1] = impl->and_count*2 + impl->circuit_size+impl->no_inputs + indx[1];
 		eq2->value = 4;
 
 		impl->result->add_element(eq1);
@@ -213,7 +214,7 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ptb_visitAnd, Gate and;, and) {
 	return 0;
 }
 
-CircuitVisitor ProofTaskBuilder_New(OE oe, byte and_challenge, byte * permaj, uint lpermaj) {
+CircuitVisitor ProofTaskBuilder_New(OE oe, byte and_challenge, byte * permaj, uint lpermaj, uint no_inputs) {
 	CircuitVisitor cv = (CircuitVisitor)oe->getmem(sizeof(*cv));
 	Ptb ptb = 0;
 
@@ -226,6 +227,7 @@ CircuitVisitor ProofTaskBuilder_New(OE oe, byte and_challenge, byte * permaj, ui
 	ptb->and_challenge = and_challenge;
 	ptb->permaj = permaj;
 	ptb->lpermaj = lpermaj;
+	ptb->no_inputs = no_inputs;
 	cv->impl = ptb;
 
 	return cv;
@@ -309,6 +311,7 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, gpam_visit, List circuit;, circuit) {
 
 	// release ownership
 	r = impl->result;
+
 	impl->result = 0;
 
 	return r;

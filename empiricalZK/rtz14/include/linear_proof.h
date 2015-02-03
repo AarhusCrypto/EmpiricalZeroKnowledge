@@ -64,11 +64,13 @@ void ProofTasks_Destroy(OE oe, List * pt) ;
  *
  * \param lpermaj - the length for permaj.
  *
+ * \param no_inputs - the number of input gates
+ *
  * \return a circuit visitor that will visit the circuit and return a list of proof tasks from
  * its visit method.
  *
  */
-CircuitVisitor ProofTaskBuilder_New(OE oe, byte and_challenge, byte * permaj, uint lpermaj);
+CircuitVisitor ProofTaskBuilder_New(OE oe, byte and_challenge, byte * permaj, uint lpermaj, uint no_inputs);
 
 // clean up the proof task builder.
 void ProofTaskBuilder_Destroy(CircuitVisitor * ptb);

@@ -9,7 +9,7 @@
 
 static int test_create_linear_prover(OE oe) {
 	_Bool ok = 0;
-	CircuitVisitor ptb = ProofTaskBuilder_New(oe, 0,0,0);
+	CircuitVisitor ptb = ProofTaskBuilder_New(oe, 0,0,0,0);
 
 	ok = (ptb != 0);
 	ProofTaskBuilder_Destroy(&ptb);
@@ -44,7 +44,7 @@ static List build_circuit(OE oe, char * cstr) {
 static int test_one_and_gate_permutation(OE oe) {
 	_Bool ok = 1;
 	byte perms[1] = {0}; // identity permutation
-	CircuitVisitor ptb = ProofTaskBuilder_New(oe,0 /*do permutations*/,perms,1);
+	CircuitVisitor ptb = ProofTaskBuilder_New(oe,0 /*do permutations*/,perms,1,2);
 	List circuit = build_circuit(oe,"AND(0,1,2)");
 	List proofTasks = 0;
 	ProofTask pt = 0;
@@ -57,24 +57,24 @@ static int test_one_and_gate_permutation(OE oe) {
 	// and these must have indicies corresponding to laying out a string
 	// as follows: m_0 m_1 m_2 p_0 p_1 p_2 where m_0 := (m_1 logical_and m_2)
 	// the permutations we insert here yields the identity so we need to see
-	// eq1->indicies[0] = 0 and eq1->indicies[1] = circuitsize*3 + identity_perm(0,1,2)[0] = 3
-	// eq2->indicies[0] = 1 and eq2->indicies[1] = circuitsize*3 + identity_perm(0,1,2)[1] = 4
-	// eq3->indicies[0] = 2 and eq3->indicies[1] = circuitsize*3 + identity_perm(0,1,2)[2] = 5
+	// eq1->indicies[0] = 0 and eq1->indicies[1] = circuitsize+2 + identity_perm(0,1,2)[0] = 3
+	// eq2->indicies[0] = 1 and eq2->indicies[1] = circuitsize+2 + identity_perm(0,1,2)[1] = 4
+	// eq3->indicies[0] = 2 and eq3->indicies[1] = circuitsize+2 + identity_perm(0,1,2)[2] = 5
 
 	pt = proofTasks->get_element(0);
 	AssertTrue(pt->indicies[0] == 0)
 	AssertTrue(pt->indicies[1] == 3);
-	AssertTrue(pt->value == 0);
+	AssertTrue(pt->value == 4);
 
 	pt = proofTasks->get_element(1);
 	AssertTrue(pt->indicies[0] == 1);
 	AssertTrue(pt->indicies[1] == 4);
-	AssertTrue(pt->value == 0)
+	AssertTrue(pt->value == 4)
 
 	pt = proofTasks->get_element(2);
 	AssertTrue(pt->indicies[0] == 2);
 	AssertTrue(pt->indicies[1] == 5);
-	AssertTrue(pt->value == 0)
+	AssertTrue(pt->value == 4)
 
 test_end:
 	ProofTaskBuilder_Destroy(&ptb);
@@ -87,7 +87,7 @@ test_end:
 static int test_one_and_gate_majority(OE oe) {
 	_Bool ok = 1;
 	byte maj[1] = {0}; // identity permutation
-	CircuitVisitor ptb = ProofTaskBuilder_New(oe,1 /*do majority*/,maj,1);
+	CircuitVisitor ptb = ProofTaskBuilder_New(oe,1 /*do majority*/,maj,1,2);
 	List circuit = build_circuit(oe,"AND(0,1,2);");
 	List proofTasks = 0;
 	ProofTask pt = 0;
@@ -101,13 +101,13 @@ static int test_one_and_gate_majority(OE oe) {
 	AssertTrue( pt != 0 )
 	AssertTrue( pt->indicies[0] == 1)
 	AssertTrue( pt->indicies[1] == 3)
-	AssertTrue( pt->value == 0)
+	AssertTrue( pt->value == 4)
 
 	pt = proofTasks->get_element(1);
 	AssertTrue( pt != 0 )
 	AssertTrue( pt->indicies[0] == 2)
 	AssertTrue( pt->indicies[1] == 4)
-	AssertTrue( pt->value == 0)
+	AssertTrue( pt->value == 4)
 
 
 test_end:

@@ -29,11 +29,12 @@ typedef struct _commitment_scheme_ {
 	Data (*commit)(Data message);
 
 	/**
-	 * The open function takes a commitment and reconstructs the message.
+	 * The open function takes a commitment and a message and checks that
+	 * the given commitment is to that message.
 	 *
 	 * \param
 	 */
-	Data (*open)(Data commitment);
+	bool (*open)(Data commitment,Data message);
 
 	void * impl;
 } * CommitmentScheme;

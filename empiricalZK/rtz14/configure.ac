@@ -9,6 +9,7 @@ AM_INIT_AUTOMAKE
 AC_PREREQ(2.12)
 AM_CONFIG_HEADER(config.h:config.in)
 AC_PROG_CC
+AM_PROG_AS
 AC_PROG_RANLIB
 
 AC_CHECK_LIB([pthread],[pthread_create],,[AC_MSG_ERROR([Could not find pthread])],)

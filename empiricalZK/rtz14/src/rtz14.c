@@ -317,10 +317,10 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 		if (and_challenge[0] == 0) {
 			check_out_bit->value = 3;
 			verifier->send(Data_shallow(gpam_res->permutations,(gpam_res->no_ands*3+7)/8));
-			proof_task_builder = ProofTaskBuilder_New(oe,and_challenge[0],gpam_res->permutations,(gpam_res->no_ands*3+7)/8);
+			proof_task_builder = ProofTaskBuilder_New(oe,and_challenge[0],gpam_res->permutations,(gpam_res->no_ands*3+7)/8,no_inputs);
 		} else {
 			verifier->send(Data_shallow(gpam_res->majority,(gpam_res->no_ands*2+7)/8));
-			proof_task_builder = ProofTaskBuilder_New(oe,and_challenge[0],gpam_res->majority,(gpam_res->no_ands*2+7)/8);
+			proof_task_builder = ProofTaskBuilder_New(oe,and_challenge[0],gpam_res->majority,(gpam_res->no_ands*2+7)/8,no_inputs);
 			check_out_bit->value = 2;
 		}
 
@@ -329,12 +329,6 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 		UserReport(oe,"[%lums] %u %s",d->getMilliTime()-start,proof_tasks->size(),
 				"Proof Tasks computed ...");
 		proof_tasks->add_element(check_out_bit);
-		{
-			uint i = 0;
-			for(i = 0; i < proof_tasks->size();++i) {
-				ProofTask_print(oe,proof_tasks->get_element(i));
-			}
-		}
 
 		// build delta string
 		delta = build_delta_string(oe,proof_tasks,xom,and_challenge[0]);
@@ -452,10 +446,16 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 		UserReport(oe,"[%lums] %s", d->getMilliTime()-start,"Received permutations/majority tests");
 
 		// compute proof tasks the prover must do
-		proof_task_builder = ProofTaskBuilder_New(oe,and_challenge->data[0],permajor->data,permajor->ldata);
+		proof_task_builder = ProofTaskBuilder_New(oe,and_challenge->data[0],permajor->data,permajor->ldata,no_inputs);
 		proof_tasks = proof_task_builder->visit(circuit);
 		UserReport(oe,"[%lums] %u %s", d->getMilliTime()-start,proof_tasks->size(),
 				      "Proof Tasks built...");
+		{
+			uint i = 0;
+			for(i = 0; i < proof_tasks->size();++i) {
+				ProofTask_print(oe,proof_tasks->get_element(i));
+			}
+		}
 
 		if (and_challenge->data[0] == 0) {
 			check_out_bit->value = 3;
@@ -503,6 +503,7 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 
 			if (xor != ((byte)get_bit(delta->data,i) ^ (challenge->data[0] & b))) {
 				accept = False;
+				UserReport(oe,"Proof Task %u failed [{%u,%u,%u},%u].",i,cur->indicies[0],cur->indicies[1],cur->indicies[2],cur->value);
 			}
 		}
 
@@ -520,7 +521,7 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 
 	{
 		byte aes[] = {0x66,0xE9,0x4B,0xD4,0xEF,0x8A,0x2C,0x3B,0x88,0x4C,0xFA,0x59,0xCA,0x34,0x2B,0x2E};
-		UserReport(oe,"These are the bits we are looking for !")
+		UserReport(oe,"These are the bits we are looking for !");
 		print_bit_string(oe,Data_shallow(aes,sizeof(aes)));
 	}
 
