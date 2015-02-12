@@ -1,4 +1,4 @@
-AC_INIT([part_template],[1.0])
+AC_INIT([encoding],[1.0])
 # Safety check that this configure is in the right position
 AC_CONFIG_SRCDIR([src/encoding/der.c])
 AM_INIT_AUTOMAKE

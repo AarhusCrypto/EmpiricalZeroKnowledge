@@ -1,4 +1,4 @@
-AC_INIT([ds],[0.1])
+AC_INIT([ds],[1.0])
 AC_CONFIG_SRCDIR([src/hashmap.c])
 AM_INIT_AUTOMAKE
 AC_PREREQ(2.12)
@@ -12,7 +12,7 @@ AC_PROG_RANLIB
 AC_OUTPUT([Makefile 
           headers/Makefile
           src/Makefile
-	  test/Makefile
+	      test/Makefile
           ])
 
 

@@ -344,8 +344,8 @@ static int test_run_one_xor_gate( OE oe ) {
 }
 
 Test tests[] = {
-	//	{"creating an RTZ14 instance",test_create_rtz14},
-	//	{"creting rtz14 with witness (as prover)", test_run_proof_4_and},
+		{"creating an RTZ14 instance",test_create_rtz14},
+		{"creating rtz14 with witness (as prover)", test_run_proof_4_and},
 	//	{"run protocol prover one and-gate.",test_run_proof_one_and},
 	//	{"run protocol prover one and-gate fails",test_run_proof_one_and_fail},
 	//	{"run protocol prover one and-gate should fail but randomness is zero",
