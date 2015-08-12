@@ -122,8 +122,8 @@ int main(int argc, char ** argv) {
 	// TODO(rwz): Bernardo, wrap your scheme in the commit interface in {commitment.h}
 	// and instantiate that wrapping here:
 	// cs = CDDGNT14_New(oe,rnd);
-	cs = Sha512BasedUcScheme_New(oe,rnd);
-	//cs = DummyScheme_New(oe);
+	// cs = Sha512BasedUcScheme_New(oe,rnd);
+	cs = DummyScheme_New(oe);
 	if (!cs) {
 		oe->syslog(OSAL_LOGLEVEL_FATAL,"Out of memory, cannot instantiate commitment scheme.");
 		return -2;

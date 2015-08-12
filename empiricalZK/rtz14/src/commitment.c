@@ -44,50 +44,14 @@ void DymmyScheme_Destroy(CommitmentScheme * scheme) {
 	*scheme = 0;
 }
 
+// TODO(rwl): When permission is given include this commitment scheme based on 
+// sha512 by Nayuki.
 
 typedef struct _sha512_uc_cs_impl_ {
 	OE oe ;
 	Rnd rnd;
 } * Sha512CsImpl;
 
-#define UINT64_C(N) ((ull)N)
-
-extern void sha512_compress(ull h[8], byte * b);
-
-static
-void sha512_hash(byte *message, uint len, ull hash[8]) {
-	hash[0] = UINT64_C(0x6A09E667F3BCC908);
-	hash[1] = UINT64_C(0xBB67AE8584CAA73B);
-	hash[2] = UINT64_C(0x3C6EF372FE94F82B);
-	hash[3] = UINT64_C(0xA54FF53A5F1D36F1);
-	hash[4] = UINT64_C(0x510E527FADE682D1);
-	hash[5] = UINT64_C(0x9B05688C2B3E6C1F);
-	hash[6] = UINT64_C(0x1F83D9ABFB41BD6B);
-	hash[7] = UINT64_C(0x5BE0CD19137E2179);
-
-	uint i=0;
-	for (i = 0; len - i >= 128; i += 128)
-		sha512_compress(hash, message + i);
-
-	byte block[128];
-	uint rem = len - i;
-	mcpy(block, message + i, rem);
-
-	block[rem] = 0x80;
-	rem++;
-	if (128 - rem >= 16)
-		zeromem(block + rem, 120 - rem);
-	else {
-		zeromem(block + rem, 128 - rem);
-		sha512_compress(hash, block);
-		zeromem(block,  120);
-	}
-
-	ull longLen = ((ull)len) << 3;
-	for (i = 0; i < 8; i++)
-		block[128 - 1 - i] = (byte)(longLen >> (i * 8));
-	sha512_compress(hash, block);
-}
 
 
 
@@ -125,7 +89,7 @@ COO_DEF_RET_ARGS(CommitmentScheme, Data, sha512_commit, Data msg;, msg) {
 	Data message_and_random = Data_new(impl->oe, msg->ldata+16);
 	mcpy(message_and_random->data,msg->data,msg->ldata);
 	rnd->rand(message_and_random->data+msg->ldata,16);
-	sha512_hash(message_and_random->data, message_and_random->ldata, hash);
+	//sha512_hash(message_and_random->data, message_and_random->ldata, hash);
 	ulls2bs(hash, sizeof(hash)/sizeof(ull), result->data);
 
 
@@ -150,7 +114,7 @@ COO_DEF_RET_ARGS(CommitmentScheme,bool, sha512_open, Data cmt; Data msg;,cmt,msg
 	mcpy(message_and_random->data,msg->data,msg->ldata);
 	mcpy(message_and_random->data+msg->ldata,cmt->data+64,16);
 
-	sha512_hash(message_and_random->data,message_and_random->ldata,hash);
+	//sha512_hash(message_and_random->data,message_and_random->ldata,hash);
 	real = Data_new(impl->oe,64);
 	ulls2bs(hash,8,real->data);
 
