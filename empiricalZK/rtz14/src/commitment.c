@@ -89,10 +89,11 @@ COO_DEF_RET_ARGS(CommitmentScheme, Data, sha512_commit, Data msg;, msg) {
 	Data message_and_random = Data_new(impl->oe, msg->ldata+16);
 	mcpy(message_and_random->data,msg->data,msg->ldata);
 	rnd->rand(message_and_random->data+msg->ldata,16);
-	//sha512_hash(message_and_random->data, message_and_random->ldata, hash);
+	//
+	// TODO(rwl): sha512_hash(message_and_random->data, 
+	// message_and_random->ldata, hash);
+	// 
 	ulls2bs(hash, sizeof(hash)/sizeof(ull), result->data);
-
-
 	mcpy(result->data+64,message_and_random->data+msg->ldata,16);
 	Data_destroy(impl->oe, &message_and_random);
 	return result;
@@ -114,7 +115,8 @@ COO_DEF_RET_ARGS(CommitmentScheme,bool, sha512_open, Data cmt; Data msg;,cmt,msg
 	mcpy(message_and_random->data,msg->data,msg->ldata);
 	mcpy(message_and_random->data+msg->ldata,cmt->data+64,16);
 
-	//sha512_hash(message_and_random->data,message_and_random->ldata,hash);
+	// TODO(rwl): include when persmission is given.
+	// sha512_hash(message_and_random->data,message_and_random->ldata,hash);
 	real = Data_new(impl->oe,64);
 	ulls2bs(hash,8,real->data);
 
