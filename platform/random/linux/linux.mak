@@ -23,11 +23,7 @@
 # BUILDDIR SETUP
 #
 ############################################################
-ifdef $(BUILDDIR)
-echo "Building at ${BUILDDIR}"
-else
-BUILDDIR=${PWD}/../../system
-endif 
+BUILDDIR ?= ${PWD}/../../../sys
 
 
 ############################################################

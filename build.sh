@@ -14,8 +14,9 @@
 #
 # Usage:
 #
-# build.sh [<project name>] - where <project name> is the name of the
-# sub-autotool project to build. Giving no argument builds everything.
+# build.sh <config> [<project name>] - where <config> is either debug
+# or release and <project name> is the name of the sub-autotool
+# project to build. Giving just debug or build we build everything.
 #
 ############################################################
 
