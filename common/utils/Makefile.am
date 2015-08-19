@@ -35,5 +35,5 @@
 # Changes: 
 # 2013-07-25 11:57: Initial version created
 
-SUBDIRS = src test headers
-LIB_MATH=$(top_srcdir)/build/src/libutils.a 
+SUBDIRS = src test include
+

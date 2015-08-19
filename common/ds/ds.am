@@ -46,8 +46,4 @@
 # hope is only a few variables needs to be redefined.
 #
 #
-BUILDDIR=$(top_srcdir)/build
-DEPS_INCLUDE=-I$(top_srcdir)/headers -I$(prefix)/include
-LIB_DS=-L$(prefix)/lib -lds -losalposix -losal -lpthread
-AM_CFLAGS=$(DEPS_INCLUDE) -I$(top_srcdir)/headers -Werror -Wall
-AM_LDFLAGS=-L$(prefix)/lib -lds -losalposix -losal -lpthread
+AM_CFLAGS=-I$(top_srcdir)/include -I$(prefix)/include

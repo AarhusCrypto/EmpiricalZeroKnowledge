@@ -19,7 +19,7 @@ typedef enum _car_rc_ {
 } CarRc;
 
 typedef struct _carena_result_ {
-  char msg[128];
+  char msg[512];
   uint lmsg;
   uint rc;
 } CAR;

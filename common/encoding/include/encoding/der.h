@@ -1,4 +1,5 @@
 #include <common.h>
+#include <osal.h>
 #ifndef DER_HH
 #define DER_HH
 
@@ -405,6 +406,24 @@ DerRC der_decode_octetstring(byte * v, uint * lv, byte * in, uint * off, uint li
    */
   DerRC der_end_read(DerCtx ** ctx);
 
+
+  typedef struct _der_input_stream_ {
+	  RC(*read_int)(ull * v);
+	  RC(*read_str)(byte ** str, uint * lstr);
+	  RC(*peek_tag)(ull * tag);
+	  RC(*begin_seq)();
+	  RC(*leave_seq)();
+	  void * impl;
+  } *DerInputStream;
+
+
+
+  /*!
+   * Destroy the CooV4 version of the DER reader.
+   *
+   */
+  DerInputStream DerInputStream_New(OE oe, FD in);
+  void DerInputStream_Destroy(DerInputStream * s);
 #ifdef __cplusplus
 }
 #endif

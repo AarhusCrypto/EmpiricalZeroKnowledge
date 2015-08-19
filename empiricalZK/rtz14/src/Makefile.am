@@ -39,12 +39,12 @@
 include $(top_srcdir)/rtz14.am
 
 lib_LIBRARIES = librtz14.a
-librtz14_a_SOURCES = rtz14.c circuitparser.c circuit_analyser.c emiter.c linear_proof.c commitment.c sha512c.c 
+librtz14_a_SOURCES = rtz14.c circuitparser.c circuit_analyser.c emiter.c linear_proof.c commitment.c sha512c.c
 
-bin_PROGRAMS = prover circuittool
+bin_PROGRAMS = rtz14 circuittool
 
-prover_SOURCES = prover.c
-prover_LDADD = librtz14.a
+rtz14_SOURCES = prover.c
+rtz14_LDADD = librtz14.a
 
 circuittool_SOURCES = circuittool.c
 circuittool_LDADD = librtz14.a

@@ -35,4 +35,5 @@
 # Changes: 
 # 2013-07-25 11:57: Initial version created
 
-SUBDIRS = src test headers
+SUBDIRS = src test include
+

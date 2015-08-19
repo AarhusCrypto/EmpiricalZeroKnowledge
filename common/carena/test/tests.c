@@ -13,7 +13,6 @@
 #include <carena.h>
 #include <osal.h>
 #include <common.h>
-#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -21,7 +20,7 @@
 int main(int c, char **a) {
   OE oe = 0;
   CArena arena = 0;
-  oe = OperatingEnvironment_LinuxNew();
+  oe = OperatingEnvironment_New();
 
   arena = CArena_new(oe);
 
@@ -53,6 +52,6 @@ int main(int c, char **a) {
 
   
 
-  OperatingEnvironment_LinuxDestroy(&oe);
+  OperatingEnvironment_Destroy(&oe);
   return 0;
 }

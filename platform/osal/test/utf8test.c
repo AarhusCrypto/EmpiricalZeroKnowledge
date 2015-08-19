@@ -12,7 +12,7 @@
 
 
 int main(int c, char **a) {
-  OE oe = OperatingEnvironment_LinuxNew();
+  OE oe = OperatingEnvironment_New();
   String s = UTF8_String_cstrnew(oe, "Rasmus");
   uint len = 0;
   String t = 0;
@@ -36,10 +36,9 @@ int main(int c, char **a) {
 
   s = UTF8_String_cstrnew(oe, "Rasmus");
   t = UTF8_String_cstrnew(oe, "mus");
-
   TEST("Suffix mus of Rasmus", s->endswith(t) == True, "Expected true");
   UTF8_String_destroy(&s);
   UTF8_String_destroy(&t);
 
-  OperatingEnvironment_LinuxDestroy ( &oe );
+  OperatingEnvironment_Destroy ( &oe );
 }

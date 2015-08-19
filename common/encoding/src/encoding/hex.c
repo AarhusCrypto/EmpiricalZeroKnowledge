@@ -4,7 +4,7 @@
 
 static MUTEX _screen_m = 0;
 
-inline byte h2b(char * hex) {
+byte h2b(char * hex) {
   byte h = hex[0];
   byte l = hex[1];
   byte res = 0;
@@ -21,7 +21,7 @@ inline byte h2b(char * hex) {
 }
 
 
-inline void b2h(byte b, char * hex) {
+void b2h(byte b, char * hex) {
   static char * hexchars = {"0123456789ABCDEFG"};
   byte h = (b & 0xF0) >> 4;
   byte l = (b & 0x0F);
@@ -30,14 +30,14 @@ inline void b2h(byte b, char * hex) {
 }
 
 
-inline void hs2bs(char * hex, byte * res, uint lres) {
+ void hs2bs(char * hex, byte * res, uint lres) {
   uint i = 0;
   for(i = 0; i < 2*lres;i+=2) {
     res[i/2] = h2b( hex+i );
   }
 }
 
-inline void bs2hs(byte * bytes, char * res, uint lres) {
+void bs2hs(byte * bytes, char * res, uint lres) {
   uint i = 0;
   for(i = 0; i < lres/2;i++) {
     b2h( bytes[i], res+(2*i) );

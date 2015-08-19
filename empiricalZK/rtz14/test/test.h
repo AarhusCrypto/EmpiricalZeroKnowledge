@@ -29,10 +29,9 @@ typedef struct _test_ {
 			uint i = 0;\
 			uint failed_tests = 0;\
 			ull start = 0; \
-			OE oe = OperatingEnvironment_LinuxNew();\
+			OE oe = OperatingEnvironment_New();\
 			DateTime dt = DateTime_New(oe);\
-			osal_sprintf(b,"Running %d tests.",sizeof(tests)/sizeof(Test));\
-			oe->p(b);\
+			oe->print("Running %d tests.",sizeof(tests)/sizeof(Test)); \
 			start = dt->getMilliTime();\
 			for(i = 0; i < sizeof(tests)/sizeof(Test);++i) {\
 				char buf[512] = {0};\

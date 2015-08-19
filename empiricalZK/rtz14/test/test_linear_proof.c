@@ -1,7 +1,7 @@
 #include "test.h"
 #include <osal.h>
 #include <linear_proof.h>
-#include <coov3.h>
+#include <coov4.h>
 #include <rnd.h>
 #include <map.h>
 #include <emiter.h>
@@ -9,7 +9,7 @@
 
 static int test_create_linear_prover(OE oe) {
 	_Bool ok = 0;
-	CircuitVisitor ptb = ProofTaskBuilder_New(oe, 0,0,0,0);
+	CircuitVisitor ptb = ProofTaskBuilder_New(oe, 0,0,0,0,0);
 
 	ok = (ptb != 0);
 	ProofTaskBuilder_Destroy(&ptb);
@@ -44,7 +44,7 @@ static List build_circuit(OE oe, char * cstr) {
 static int test_one_and_gate_permutation(OE oe) {
 	_Bool ok = 1;
 	byte perms[1] = {0}; // identity permutation
-	CircuitVisitor ptb = ProofTaskBuilder_New(oe,0 /*do permutations*/,perms,1,2);
+	CircuitVisitor ptb = ProofTaskBuilder_New(oe,0 /*do permutations*/,perms,1,2,0);
 	List circuit = build_circuit(oe,"AND(0,1,2)");
 	List proofTasks = 0;
 	ProofTask pt = 0;
@@ -87,7 +87,7 @@ test_end:
 static int test_one_and_gate_majority(OE oe) {
 	_Bool ok = 1;
 	byte maj[1] = {0}; // identity permutation
-	CircuitVisitor ptb = ProofTaskBuilder_New(oe,1 /*do majority*/,maj,1,2);
+	CircuitVisitor ptb = ProofTaskBuilder_New(oe,1 /*do majority*/,maj,1,2,0);
 	List circuit = build_circuit(oe,"AND(0,1,2);");
 	List proofTasks = 0;
 	ProofTask pt = 0;
@@ -208,7 +208,7 @@ static int test_generate_perm_and_maj_create(OE oe) {
 	_Bool ok = 1;
 	byte d[] = {0};
 	Rnd rnd = TestRnd_New(oe,0);
-	CircuitVisitor cv = GeneratePermuationsAndMajorities_New(oe,rnd,d);
+	CircuitVisitor cv = GeneratePermuationsAndMajorities_New(oe,rnd,d,0);
 
 	AssertTrue(cv != 0)
 	test_end:
@@ -239,7 +239,7 @@ static int test_permmaj_one_allzero_idperm_and_gate(OE oe) {
 	emiter = EvaluationStringEmitter_New(oe,input_gates,inputs);
 	er = emiter->visit(circuit);
 
-	gpam = GeneratePermuationsAndMajorities_New(oe,rnd,er->emitted_string);
+	gpam = GeneratePermuationsAndMajorities_New(oe,rnd,er->emitted_string,0);
 	gpam_result = gpam->visit(circuit);
 
 	AssertTrue(gpam_result != 0)
@@ -292,7 +292,7 @@ static int test_permmaj_one_op1one_op2one_idperm_and_gate(OE oe) {
 	emiter = EvaluationStringEmitter_New(oe,input_gates,inputs);
 	er = emiter->visit(circuit);
 
-	gpam = GeneratePermuationsAndMajorities_New(oe,rnd,er->emitted_string);
+	gpam = GeneratePermuationsAndMajorities_New(oe,rnd,er->emitted_string,0);
 	gpam_result = gpam->visit(circuit);
 
 	AssertTrue(er->emitted_string[0] == 15)
@@ -355,7 +355,7 @@ static int test_permmaj_one_op1one_op2zero_perm2_and_gate(OE oe) {
 	emiter = EvaluationStringEmitter_New(oe,input_gates,inputs);
 	er = emiter->visit(circuit);
 
-	gpam = GeneratePermuationsAndMajorities_New(oe,rnd,er->emitted_string);
+	gpam = GeneratePermuationsAndMajorities_New(oe,rnd,er->emitted_string,0);
 	gpam_result = gpam->visit(circuit);
 
 	AssertTrue(er->emitted_string[0] == 3)
@@ -411,7 +411,7 @@ static int test_permmaj_one_op1one_op2zero_perm3_and_gate(OE oe) {
 	emiter = EvaluationStringEmitter_New(oe,input_gates,inputs);
 	er = emiter->visit(circuit);
 
-	gpam = GeneratePermuationsAndMajorities_New(oe,rnd,er->emitted_string);
+	gpam = GeneratePermuationsAndMajorities_New(oe,rnd,er->emitted_string,0);
 	gpam_result = gpam->visit(circuit);
 
 	AssertTrue(er->emitted_string[0] == 3)
@@ -470,7 +470,7 @@ static int test_permmaj_one_op1one_op2zero_perm4_and_gate(OE oe) {
 	emiter = EvaluationStringEmitter_New(oe,input_gates,inputs);
 	er = emiter->visit(circuit);
 
-	gpam = GeneratePermuationsAndMajorities_New(oe,rnd,er->emitted_string);
+	gpam = GeneratePermuationsAndMajorities_New(oe,rnd,er->emitted_string,0);
 	gpam_result = gpam->visit(circuit);
 
 	AssertTrue(er->emitted_string[0] == 3)
@@ -525,7 +525,7 @@ static int test_permmaj_one_op1one_op2zero_perm5_and_gate(OE oe) {
 	emiter = EvaluationStringEmitter_New(oe,input_gates,inputs);
 	er = emiter->visit(circuit);
 
-	gpam = GeneratePermuationsAndMajorities_New(oe,rnd,er->emitted_string);
+	gpam = GeneratePermuationsAndMajorities_New(oe,rnd,er->emitted_string,0);
 	gpam_result = gpam->visit(circuit);
 
 	AssertTrue(er->emitted_string[0] == 3)
@@ -580,7 +580,7 @@ static int test_permmaj_one_op1one_op2zero_perm1_and_gate(OE oe) {
 	emiter = EvaluationStringEmitter_New(oe,input_gates,inputs);
 	er = emiter->visit(circuit);
 
-	gpam = GeneratePermuationsAndMajorities_New(oe,rnd,er->emitted_string);
+	gpam = GeneratePermuationsAndMajorities_New(oe,rnd,er->emitted_string,0);
 	gpam_result = gpam->visit(circuit);
 
 	AssertTrue(er->emitted_string[0] == 3)

@@ -13,7 +13,7 @@
 
 
 int main(int c, char **a) {
-  OE oe = OperatingEnvironment_LinuxNew();
+  OE oe = OperatingEnvironment_New();
   List l = SingleLinkedList_new(oe);
   int i = 0;
 

@@ -98,7 +98,8 @@ static int tokenize_file(OE oe) {
 	Tokenizer tk = 0;
 	Token tok = {0};
 	byte * buffer = oe->getmem(lbuffer);
-	uint fp = oe->open("file ../test/AES");
+	uint fp = 0;
+	oe->open("file ../test/AES",&fp);
 	oe->read(fp,buffer,&lbuffer);
 	oe->close(fp);
 	tk = FunCallTokenizer_New(oe);

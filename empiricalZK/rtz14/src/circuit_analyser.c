@@ -7,7 +7,7 @@
  *  Created on: Jan 7, 2015
  *      Author: rwl
  */
-#include <coov3.h>
+#include <coov4.h>
 #include <osal.h>
 #include <circuitparser.h>
 #include <circuit_analyser.h>
@@ -19,8 +19,7 @@ typedef struct _poc_Visitor_ {
 	uint address_of_one;
 } * PocVisitor;
 
-COO_DCL(CircuitVisitor, void *, poc_visitAnd, Gate and);
-COO_DEF_RET_ARGS(CircuitVisitor, void *, poc_visitAnd, Gate and;,and) {
+COO_DEF(CircuitVisitor, void *, poc_visitAnd, Gate and)
 	PocVisitor pcv = (PocVisitor)this->impl;
 
 	if (and->op2 == -1) {
@@ -34,9 +33,7 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, poc_visitAnd, Gate and;,and) {
 	return 0;
 }
 
-COO_DCL(CircuitVisitor, void *, poc_visitXor, Gate xor);
-COO_DEF_RET_ARGS(CircuitVisitor, void *, poc_visitXor, Gate xor;,xor) {
-
+COO_DEF(CircuitVisitor, void *, poc_visitXor, Gate xor)
 	PocVisitor pcv = (PocVisitor)this->impl;
 
 	if (xor->op2 == -1) {
@@ -51,8 +48,7 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, poc_visitXor, Gate xor;,xor) {
 }
 
 
-COO_DCL(CircuitVisitor, void *, poc_visit, List circuit);
-COO_DEF_RET_ARGS(CircuitVisitor, void *, poc_visit, List circuit;, circuit) {
+COO_DEF(CircuitVisitor, void *, poc_visit, List circuit)
 	uint i = 0;
 	for(i = 0; i < circuit->size();++i) {
 		Gate g = circuit->get_element(i);
@@ -72,9 +68,9 @@ CircuitVisitor PatchOneConstants_New(OE oe, uint address_of_one) {
 	pcv = (PocVisitor)oe->getmem(sizeof(*pcv));
 	if (!pcv) goto error;
 
-	COO_ATTACH_FN(CircuitVisitor,cv,visitAnd,poc_visitAnd);
-	COO_ATTACH_FN(CircuitVisitor,cv,visitXor,poc_visitXor);
-	COO_ATTACH_FN(CircuitVisitor,cv,visit,poc_visit);
+	cv->visitAnd = COO_attach(cv,CircuitVisitor_poc_visitAnd);
+	cv->visitXor = COO_attach(cv,CircuitVisitor_poc_visitXor);
+	cv->visit    = COO_attach(cv,CircuitVisitor_poc_visit);
 
 	cv->impl = pcv;
 	pcv->oe = oe;
@@ -98,9 +94,9 @@ void PatchOneConstants_Destroy(CircuitVisitor * pcv_) {
 
 	oe = pcv->oe;
 
-	COO_DETACH(cv,visitAnd);
-	COO_DETACH(cv, visitXor);
-	COO_DETACH(cv, visit);
+	COO_detach(cv->visitAnd);
+	COO_detach(cv->visitXor);
+	COO_detach(cv->visit);
 
 	oe->putmem(cv);
 	oe->putmem(pcv);
@@ -127,8 +123,7 @@ static int locate_cmp(void *a_, void *b_) {
 }
 
 
-COO_DCL(CircuitVisitor, void *, igv_visit_and, Gate and);
-COO_DEF_RET_ARGS(CircuitVisitor, void *, igv_visit_and, Gate and;, and) {
+COO_DEF(CircuitVisitor, void *, igv_visit_and, Gate and)
 	IGVisitor igv = this->impl;
 	ull v = and->op1;
 
@@ -152,8 +147,7 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, igv_visit_and, Gate and;, and) {
 }
 
 
-COO_DCL(CircuitVisitor, void *, igv_visit_xor, Gate xor);
-COO_DEF_RET_ARGS(CircuitVisitor, void *, igv_visit_xor, Gate xor;, xor) {
+COO_DEF(CircuitVisitor, void *, igv_visit_xor, Gate xor)
 	IGVisitor igv = this->impl;
 	ull v = 0;
 
@@ -178,8 +172,8 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, igv_visit_xor, Gate xor;, xor) {
 }
 
 
-COO_DCL(CircuitVisitor, void *, igv_visit, List circuit);
-COO_DEF_RET_ARGS(CircuitVisitor, void *, igv_visit, List circuit;, circuit) {
+COO_DEF(CircuitVisitor, void *, igv_visit, List circuit)
+
 	uint i = 0;
 	IGVisitor igv = this->impl;
 	Map result = 0;
@@ -228,9 +222,9 @@ CircuitVisitor InputGateVisitor_New(OE oe) {
 
 	igv->oe = oe;
 
-	COO_ATTACH_FN(CircuitVisitor, cv, visitAnd, igv_visit_and);
-	COO_ATTACH_FN(CircuitVisitor, cv, visitXor, igv_visit_xor);
-	COO_ATTACH_FN(CircuitVisitor, cv, visit, igv_visit);
+	cv->visitAnd = COO_attach(cv, CircuitVisitor_igv_visit_and);
+	cv->visitXor = COO_attach(cv, CircuitVisitor_igv_visit_xor);
+	cv->visit    = COO_attach(cv, CircuitVisitor_igv_visit);
 
 	cv->impl = igv;
 
@@ -265,8 +259,8 @@ typedef struct _output_gate_visitor_impl_ {
 } * OGVImpl;
 
 
-COO_DCL(CircuitVisitor, void *, ogv_visitAnd, Gate and);
-COO_DEF_RET_ARGS(CircuitVisitor, void *, ogv_visitAnd , Gate and;, and) {
+COO_DEF(CircuitVisitor, void *, ogv_visitAnd, Gate and)
+
 	OGVImpl ogv = (OGVImpl)this->impl;
 
 	if (ogv->gates_read->contains((void*)(ull)and->op1) == False) {
@@ -281,8 +275,8 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ogv_visitAnd , Gate and;, and) {
 }
 
 
-COO_DCL(CircuitVisitor, void *, ogv_visitXor, Gate xor);
-COO_DEF_RET_ARGS(CircuitVisitor, void *, ogv_visitXor , Gate xor;, xor) {
+COO_DEF(CircuitVisitor, void *, ogv_visitXor, Gate xor)
+
 	OGVImpl ogv = (OGVImpl)this->impl;
 
 	if (ogv->gates_read->contains((void*)(ull)xor->op1) == False) {
@@ -297,8 +291,8 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ogv_visitXor , Gate xor;, xor) {
 }
 
 
-COO_DCL(CircuitVisitor, void *, ogv_visit, List circuit);
-COO_DEF_RET_ARGS(CircuitVisitor, void *, ogv_visit , List circuit;, circuit) {
+COO_DEF(CircuitVisitor, void *, ogv_visit, List circuit)
+
 	OGVImpl ogv = (OGVImpl)this->impl;
 	uint i = 0;
 	Map h = HashMap_new(ogv->oe, locate_hash, locate_cmp, 1024);
@@ -336,9 +330,9 @@ CircuitVisitor OutputGateVisitor_New(OE oe) {
 	impl->oe = oe;
 	res->impl = impl;
 
-	COO_ATTACH_FN(CircuitVisitor, res, visit, ogv_visit);
-	COO_ATTACH_FN(CircuitVisitor, res, visitAnd, ogv_visitAnd);
-	COO_ATTACH_FN(CircuitVisitor, res, visitXor, ogv_visitXor);
+	res->visit = COO_attach(res,CircuitVisitor_ogv_visit);
+	res->visitAnd = COO_attach(res,CircuitVisitor_ogv_visitAnd);
+	res->visitXor = COO_attach(res,CircuitVisitor_ogv_visitXor);
 
 	return res;
 }
@@ -356,9 +350,9 @@ void OutputGateVisitor_Destroy(CircuitVisitor * cv) {
 	ogv = c->impl;
 	oe = ogv->oe;
 
-	COO_DETACH(c,visit);
-	COO_DETACH(c,visitAnd);
-	COO_DETACH(c,visitXor);
+	COO_detach(c->visit);
+	COO_detach(c->visitAnd);
+	COO_detach(c->visitXor);
 
 	HashMap_destroy(&ogv->gates_read);
 	oe->putmem(c);

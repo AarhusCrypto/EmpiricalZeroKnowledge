@@ -4,7 +4,7 @@ bin_PROGRAMS = hashmaptest statstest
 
 
 statstest_SOURCES = statstest.c
-statstest_LDADD = $(LIB_DS)
+statstest_LDADD = ../src/libds.a 
 
 hashmaptest_SOURCES = hashmaptest.c
-hashmaptest_LDADD = $(LIB_DS) 
+hashmaptest_LDADD = ../src/libds.a 

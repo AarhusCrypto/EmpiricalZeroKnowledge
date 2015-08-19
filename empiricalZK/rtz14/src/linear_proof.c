@@ -1,65 +1,63 @@
-/*
- * linear_proof.c
- *
- *  Created on: Jan 9, 2015
- *      Author: rwl
- */
+/* /\* */
+/*  * linear_proof.c */
+/*  * */
+/*  *  Created on: Jan 9, 2015 */
+/*  *      Author: rwl */
+/*  *\/ */
 
 
 #include <linear_proof.h>
-#include <coov3.h>
-
+#include <coov4.h>
 #include <rnd.h>
 
 typedef struct _ptb_impl_ {
-	byte * permaj;
-	uint lpermaj;
-	byte and_challenge;
-	uint and_count;
-	uint circuit_size;
-	uint no_inputs;
-	List result;
-	OE oe ;
+  byte * permaj;
+  uint lpermaj;
+  byte and_challenge;
+  uint and_count;
+  uint circuit_size;
+  uint no_inputs;
+  uint address_of_one;
+  List result;
+  OE oe ;
 } * Ptb;
 
-COO_DCL(CircuitVisitor, void *, ptb_visit, List circuit);
-COO_DEF_RET_ARGS(CircuitVisitor, void *, ptb_visit, List circuit;,circuit) {
-	uint i = 0;
-	Ptb impl = this->impl;
-	uint expected_and_count_max = 0;
-	expected_and_count_max = impl->lpermaj*8 + (impl->and_challenge == 0 ? 2 : 1);
-	expected_and_count_max /= (impl->and_challenge == 0 ? 3 : 2);
+COO_DEF(CircuitVisitor, void *, ptb_visit, List circuit) {
+  uint i = 0;
+  Ptb impl = this->impl;
+  uint expected_and_count_max = 0;
+  expected_and_count_max = impl->lpermaj*8 + (impl->and_challenge == 0 ? 2 : 1);
+  expected_and_count_max /= (impl->and_challenge == 0 ? 3 : 2);
+  
+  if (impl->result) {
+    SingleLinkedList_destroy(&impl->result);
+  }
+  impl->result = SingleLinkedList_new(impl->oe);
+  impl->and_count = 0;
+  impl->circuit_size = circuit->size();
+  
+  for(i = 0; i < circuit->size();++i) {
+    Gate g = circuit->get_element(i);
+    if (g->type == G_XOR) { this->visitXor(g); }
+    if (g->type == G_AND) { this->visitAnd(g); }
+    
+    if (impl->and_count > expected_and_count_max) {
+      impl->oe->syslog(OSAL_LOGLEVEL_WARN,"More and gates than permutations/majority tests.");
+    }
+  }
+  return impl->result;
+}}
 
-	if (impl->result) {
-		SingleLinkedList_destroy(&impl->result);
-	}
-	impl->result = SingleLinkedList_new(impl->oe);
-	impl->and_count = 0;
-	impl->circuit_size = circuit->size();
-
-	for(i = 0; i < circuit->size();++i) {
-		Gate g = circuit->get_element(i);
-		if (g->type == G_XOR) { this->visitXor(g); }
-		if (g->type == G_AND) { this->visitAnd(g); }
-
-		if (impl->and_count > expected_and_count_max) {
-			impl->oe->syslog(OSAL_LOGLEVEL_WARN,"More and gates than permutations/majority tests.");
-		}
-	}
-	return impl->result;
-}
-
-COO_DCL(CircuitVisitor, void *, ptb_visitXor, Gate xor);
-COO_DEF_RET_ARGS(CircuitVisitor, void *, ptb_visitXor, Gate xor;, xor) {
+COO_DEF(CircuitVisitor, void *, ptb_visitXor, Gate xor) {
 	Ptb impl = this->impl;
 	ProofTask pt = impl->oe->getmem(sizeof(*pt));
 	pt->indicies[0] = xor->dst;
 	pt->indicies[1] = xor->op1;
 	pt->indicies[2] = xor->op2;
-	pt->value = 0+3*2;
+	pt->value = 0+3*2; // do eq test and 3*2 is that we have 3 indices in the indicies list.
 	impl->result->add_element(pt);
 	return 0;
-}
+}}
 
 static const uint majs[3][3] = {{0,1,2},{0,2,1},{2,1,0}};
 static void apply_majority(OE oe, byte * m, uint lm, uint * indx, uint majidx) {
@@ -98,6 +96,23 @@ static void apply_majority(OE oe, byte * m, uint lm, uint * indx, uint majidx) {
 }
 
 static const uint perms[6][3] = {{0,1,2},{0,2,1},{1,0,2},{1,2,0},{2,0,1},{2,1,0}};
+
+/* Apply Permuation
+ *
+ * OE oe        - the os
+
+ * byte * p     - the selected permutations to apply, this is a bit string
+ *                of groups of three bits indicating an index 0-5 in the
+ *                {perms} permutations above.
+ *
+ * uint lp      - the byte-length of p
+ *
+ * uint * indx  - takes as input [0,1,2] and on output it contains P([0,1,2])
+ *
+ * uint permidx - the permutation to use from {p}
+ *
+ *
+ */
 static void apply_permutation(OE oe, byte * p, uint lp, uint * indx, uint permidx) {
 	uint byte_idx = 0;
 	uint bit_idx = 0;
@@ -110,7 +125,7 @@ static void apply_permutation(OE oe, byte * p, uint lp, uint * indx, uint permid
 	bit_idx = (3*permidx)-byte_idx*8;
 
 	bit1 = (((0x01 << bit_idx) & p[byte_idx]) != 0);
-	if (bit_idx > 6) {
+	if (bit_idx > 6) { // if the following bit cross byte boundary
 		byte_idx += 1;
 		if (byte_idx > lp) {
 			oe->syslog(OSAL_LOGLEVEL_WARN, "Extracting bit2 we ran index out of bound.");
@@ -121,7 +136,7 @@ static void apply_permutation(OE oe, byte * p, uint lp, uint * indx, uint permid
 		bit_idx += 1;
 	}
 	bit2 = (((0x01 << bit_idx) & p[byte_idx]) != 0);
-	if (bit_idx > 6) {
+	if (bit_idx > 6) { // if the following bit cross byte boundary
 		byte_idx += 1;
 		if (byte_idx > lp) {
 			oe->syslog(OSAL_LOGLEVEL_WARN, "Extracting bit3 we ran index out of bound.");
@@ -151,8 +166,7 @@ static void apply_permutation(OE oe, byte * p, uint lp, uint * indx, uint permid
 	indx[2] = res[2];
 }
 
-COO_DCL(CircuitVisitor, void *, ptb_visitAnd, Gate and);
-COO_DEF_RET_ARGS(CircuitVisitor, void *, ptb_visitAnd, Gate and;, and) {
+COO_DEF(CircuitVisitor, void *, ptb_visitAnd, Gate and)
 	Ptb impl = this->impl;
 	ProofTask pt = impl->oe->getmem(sizeof(*pt));
 	uint indx[3] = {0};
@@ -170,9 +184,10 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ptb_visitAnd, Gate and;, and) {
 
 		apply_permutation(impl->oe,impl->permaj,impl->lpermaj,indx,impl->and_count);
 
-		eq1->indicies[0] = and->dst;
+		// compare this permuted value to not one
+		eq1->indicies[0] = impl->address_of_one;
 		eq1->indicies[1] = impl->and_count*3 + impl->circuit_size+impl->no_inputs+indx[0];
-		eq1->value = 4;
+		eq1->value = 5;
 
 		eq2->indicies[0] = and->op1;
 		eq2->indicies[1] = impl->and_count*3 + impl->circuit_size+impl->no_inputs+indx[1];
@@ -214,13 +229,15 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ptb_visitAnd, Gate and;, and) {
 	return 0;
 }
 
-CircuitVisitor ProofTaskBuilder_New(OE oe, byte and_challenge, byte * permaj, uint lpermaj, uint no_inputs) {
+CircuitVisitor ProofTaskBuilder_New(OE oe, byte and_challenge, 
+				    byte * permaj, uint lpermaj, 
+				    uint no_inputs, uint address_of_one) {
 	CircuitVisitor cv = (CircuitVisitor)oe->getmem(sizeof(*cv));
 	Ptb ptb = 0;
 
-	COO_ATTACH_FN(CircuitVisitor, cv, visit, ptb_visit);
-	COO_ATTACH_FN(CircuitVisitor, cv, visitXor, ptb_visitXor);
-	COO_ATTACH_FN(CircuitVisitor, cv, visitAnd, ptb_visitAnd);
+	cv->visit = COO_attach(cv, CircuitVisitor_ptb_visit);
+	cv->visitXor = COO_attach(cv, CircuitVisitor_ptb_visitXor);
+	cv->visitAnd = COO_attach(cv, CircuitVisitor_ptb_visitAnd);
 
 	ptb = (Ptb)oe->getmem(sizeof(*ptb));
 	ptb->oe = oe;
@@ -228,6 +245,7 @@ CircuitVisitor ProofTaskBuilder_New(OE oe, byte and_challenge, byte * permaj, ui
 	ptb->permaj = permaj;
 	ptb->lpermaj = lpermaj;
 	ptb->no_inputs = no_inputs;
+	ptb->address_of_one = address_of_one;
 	cv->impl = ptb;
 
 	return cv;
@@ -247,9 +265,9 @@ void ProofTaskBuilder_Destroy(CircuitVisitor * cv) {
 	if (!ptb) return;
 	oe = ptb->oe;
 
-	COO_DETACH(c,visit);
-	COO_DETACH(c,visitAnd);
-	COO_DETACH(c,visitXor);
+	COO_detach(c->visit);
+	COO_detach(c->visitAnd);
+	COO_detach(c->visitXor);
 
 	oe->putmem(c);
 	oe->putmem(ptb);
@@ -280,10 +298,10 @@ typedef struct _gpam_impl_ {
 	GPam result;
 	uint and_count;
 	byte * evaled_circuit;
+        uint address_of_one;
 } * GPamImpl;;
 
-COO_DCL(CircuitVisitor, void *, gpam_visit, List circuit);
-COO_DEF_RET_ARGS(CircuitVisitor, void *, gpam_visit, List circuit;, circuit) {
+COO_DEF(CircuitVisitor, void *, gpam_visit, List circuit)
 	GPamImpl impl = (GPamImpl)this->impl;
 	GPam r = 0;
 	impl->result = impl->oe->getmem(sizeof(*(impl->result)));
@@ -344,8 +362,7 @@ static inline void set_bit(byte * bita, uint idx, byte bit) {
 
 
 
-COO_DCL(CircuitVisitor, void *, gpam_visitAnd, Gate and);
-COO_DEF_RET_ARGS(CircuitVisitor, void *, gpam_visitAnd, Gate and;, and) {
+COO_DEF(CircuitVisitor, void *, gpam_visitAnd, Gate and)
 	GPamImpl impl = this->impl;
 	byte r = 0;
 	uint byte_idx = 0;
@@ -366,7 +383,7 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, gpam_visitAnd, Gate and;, and) {
 	// a random permutation of three elements
 	pi = (uint *)perms[r];
 
-	// read bits
+	// read bits from circuit
 	byte_idx = (and->dst)/8;
 	bit_idx = and->dst-byte_idx*8;
 	bit1 = ( impl->evaled_circuit[byte_idx] & (0x01 << bit_idx) ) != 0;
@@ -438,8 +455,7 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, gpam_visitAnd, Gate and;, and) {
 	return 0;
 }
 
-COO_DCL(CircuitVisitor, void *, gpam_visitXor, Gate xor);
-COO_DEF_RET_ARGS(CircuitVisitor, void *, gpam_visitXor, Gate xor;, xor) {
+COO_DEF(CircuitVisitor, void *, gpam_visitXor, Gate xor)
 return 0;
 }
 
@@ -454,7 +470,8 @@ void ProofTask_print(OE oe, ProofTask pt) {
 	oe->syslog(OSAL_LOGLEVEL_DEBUG,b);
 }
 
-CircuitVisitor GeneratePermuationsAndMajorities_New(OE oe, Rnd rnd, byte * eval_circuit) {
+CircuitVisitor GeneratePermuationsAndMajorities_New(OE oe, Rnd rnd, 
+						    byte * eval_circuit, uint address_of_one) {
 	CircuitVisitor iface = (CircuitVisitor)oe->getmem(sizeof(*iface));
 
 	if (!iface) return 0;
@@ -465,11 +482,12 @@ CircuitVisitor GeneratePermuationsAndMajorities_New(OE oe, Rnd rnd, byte * eval_
 	impl->oe = oe;
 	impl->rnd = rnd;
 	impl->evaled_circuit = eval_circuit;
+	impl->address_of_one = address_of_one;
 	iface->impl = impl;
 
-	COO_ATTACH_FN(CircuitVisitor,iface,visit,gpam_visit);
-	COO_ATTACH_FN(CircuitVisitor,iface,visitAnd, gpam_visitAnd);
-	COO_ATTACH_FN(CircuitVisitor,iface,visitXor, gpam_visitXor);
+	iface->visit = COO_attach(iface,CircuitVisitor_gpam_visit);
+	iface->visitAnd = COO_attach(iface,CircuitVisitor_gpam_visitAnd);
+	iface->visitXor = COO_attach(iface,CircuitVisitor_gpam_visitXor);
 
 	return iface;
 	error:
@@ -491,9 +509,9 @@ void GeneratePermutationsAndMajorities_Destroy(CircuitVisitor * cv) {
 	oe = i->oe;
 
 	*cv = 0;
-	COO_DETACH(c,visit);
-	COO_DETACH(c,visitAnd);
-	COO_DETACH(c,visitXor);
+	COO_detach(c->visit);
+	COO_detach(c->visitAnd);
+	COO_detach(c->visitXor);
 
 	oe->putmem(c);
 	oe->putmem(i);

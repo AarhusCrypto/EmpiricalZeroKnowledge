@@ -2,7 +2,7 @@
 
 
 int main(int c, char **args) {
-  OE oe = OperatingEnvironment_LinuxNew();
+  OE oe = OperatingEnvironment_New();
   int i=0,a=0;
   InitStats(oe);
 
@@ -17,7 +17,7 @@ int main(int c, char **args) {
 
   PrintMeasurements(oe);
 
-  OperatingEnvironment_LinuxDestroy(&oe);
+  OperatingEnvironment_Destroy(&oe);
 
   return 0;
 }

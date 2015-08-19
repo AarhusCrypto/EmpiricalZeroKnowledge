@@ -16,4 +16,8 @@ typedef int (*CompareFN)(void * a, void* b);
 
 Map HashMap_new( OE oe, HashFN hfn, CompareFN cfn, uint buckets );
 void HashMap_destroy( Map * map );
+Map HashMap_IntKey_New(OE, uint buckets);
+Map HashMap_StrKey_New(OE,uint);
+
+
 #endif

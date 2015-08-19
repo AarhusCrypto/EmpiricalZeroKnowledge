@@ -56,49 +56,83 @@ Changes:
 
 #include "common.h"
 #include "mutex.h"
+#include <intkeymap.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct _operating_environment_;
-typedef void * (*DefaultConstructor)(struct _operating_environment_ * oe);
 
+// ----------------------------------------
+// Forward declarations
+// ----------------------------------------
+struct _operating_environment_;
+
+// ----------------------------------------
+// Native Library support
+// ----------------------------------------
+typedef void * (*DefaultConstructor)(struct _operating_environment_ * oe);
 extern const char * DATE_TIME_LIBRARY;
 extern const char * TERMINAL_LIBRARY;
 extern const char * NETWORK_LIBRARY;
 extern const char * GRAPHICS_LIBRARY;
-
-#define P(M,...) {                                    \
-    char m[128] = {0};                                \
-    osal_sprintf((M), #__VA_ARGS__ );                 \
-    oe->p(m);                                         } 
   
-  struct _operating_environment_;
-
-  typedef struct _data_ {
+// ----------------------------------------
+// Useful Data encapsulation 
+// ----------------------------------------
+typedef struct _data_ {
     uint ldata;
     byte * data;
   } * Data;
 
-  /*
-   * A semaphore, and what we tell the world about it.
-   */
-  typedef struct _cmaphore_ {
+// ----------------------------------------
+// Semaphore Definition
+// ----------------------------------------
+typedef struct _cmaphore_ {
     struct _operating_environment_ * oe;
     int count;
     MUTEX lock;
   } * Cmaphore;
 
+// ----------------------------------------
+//                 ON ERRORS
+//
+// OSal reports errors with a return code (RC),
+// the reason for errors are written to the logs.
+// 
+// 
+// ----------------------------------------
+
+// ----------------------------------------
+// Error codes from OSAL all clients are 
+// welcome to adapt these error codes.
+// ----------------------------------------
   typedef enum _Return_Code {
+	// everything is fine operation successful
     RC_OK,
+	// file descriptor disconnected
     RC_DISCONN,
+	// operation fail for unspecified reasons
     RC_FAIL,
+	// no more memory
     RC_NOMEM,
+	// arguments are inconsistent or wrong
     RC_BAD_ARGS,
-	RC_BAD_DATA,
+    // data expected in some format, but wasn't
+    RC_BAD_DATA,
+    // blocking function interrupted.
+    RC_INT,
+    // instance impl not set
+    RC_IMPL_NOTSET,
+    // Try again with file descriptor
+    RC_TRY_AGAIN,
   } RC;
 
+ // ----------------------------------------
+ // Log Levels for instance OE oe; {oe->p} function
+ // the default trace-log function and for use
+ // with syslog.
+ // ----------------------------------------
   typedef enum {
     /* All that crap implementors wants to see that makes no sense to
      * any one else.
@@ -120,15 +154,20 @@ extern const char * GRAPHICS_LIBRARY;
 
     /*
      * Print to user. Message here should arrive in the hands of the
-     * end user not only in the log. Low level message that the
-     * end-user cannot ignore, use this carefully.
+     * end user not only in the log. Examples include Low level message 
+	 * that the end-user cannot ignore, use this carefully.
      */
     OSAL_LOGLEVEL_USER=0x08,
+
   } LogLevel;
 
+  // ----------------------------------------
+  // Type definitions
+  // ----------------------------------------
   typedef void* (*ThreadFunction)(void *);
   typedef uint ThreadID;
-  
+  typedef uint FD;
+
 
 /*!
  * \struct an instance of struct _operating_environment_ provides
@@ -145,7 +184,6 @@ typedef struct _operating_environment_ {
   // ------------------------------------------------------------
   // Core functionality 
   // ------------------------------------------------------------
-
   char * (*get_version)(void);
 
   // ------------------------------------------------------------
@@ -170,73 +208,109 @@ typedef struct _operating_environment_ {
   /*!
    * read from {fd} into {buf} up to {lbuf} bytes. 
    *
-   * Return the number of bytes actually read.
+   * Return RC_OK on success otherwise a failure occurred.
    *
-   * This function only returns zero if lbuf is zero or an error
-   * occurred (connection closed, or some other kind of read error).
+   * @param fd  - osal file descriptor
+   * @param buf - to which data are written
+   * @param lbuf- initially hold the memory available in buf 
+   *              upon success lbuf holds the number of bytes 
+   *              read.
+   *
+   * @return RC_OK on success, *{lbuf} holdes the numbe of bytes read
+   * into {buf}.
    */
-  RC (*read)(uint fd, byte * buf, uint * lbuf);
+  RC (*read)(FD fd, byte * buf, uint * lbuf);
 
   /*!
-   * write to {fd} {lbuf} bytes from {buf}.
+   * write to {fd} *{lbuf} bytes from {buf}.
    * 
-   * Return the number of bytes actually written.
+   * Return RC_OK on success, and *{lbuf} will 
+   * contain the number of bytes written.
+   *
    */
-  RC (*write)(uint fd, byte * buf, uint lbuf);
+  RC (*write)(FD fd, byte * buf, uint * lbuf);
 
   /*!
    * open file descriptor for the resource identified by {name}.
    * 
-   * \return file descriptor
+   * \param fd - out parameter that will hold the allocated 
+   *             file descriptor. open fails if fd is null.
    * 
    * ex: if {name} is "ip 192.168.2.1:42" opens an file descriptor on
    * ethernet to that ip address to the given port after colon.
    *
    * if {name} is "file home/rwl/memory.txt" opens a file descriptor
    * to the specified file on the file system.
+   *
+   * \return RC_OK if allocation of resource was successfull
    */
-  uint (*open)(const char * name);
+  RC (*open)(const char * name, FD * fd);
 
   /*!
    * free resources allocated for {fd}.
    *
-   * \return 0 on success 
+   * \return RC_OK on success 
    */
-  int (*close)(uint fd);
+  RC (*close)(FD fd);
   
   /*!
    * if the given file descriptor {fd} is a listening socket {accept}
    * will return the first incoming connection after invocation
    * waiting.
    */
-  uint (*accept)(uint fd);
+  RC (*accept)(FD server_fd, FD * client_fd);
 
 
   // ------------------------------------------------------------
   // Threads
   // ------------------------------------------------------------
-
-
+  
   /*!
    * start a new thread with the given args and argument.
    *
+   * \param {tid} - therad id out 
+   * \param {tf}  - entry point for this thread
+   * \param {args}- optional arguments for {tf}
+   *
+   * \return RC_OK on success.
    */
-  ThreadID (*newthread)(ThreadFunction tf, void * args);
+  RC (*newthread)(ThreadID * tid, ThreadFunction tf, void * args);
+
+  /*
+   * Blocks or preferably reschedules the current thread for {usec}
+   * micro seconds 1/10^6 of a second.
+   *
+   * \param {usec} - number of micro (1/16^6) seconds to block
+   *
+   * \returns RC_OK on success sleeping the specified amount of time
+   * may return RC_INT if the calling thread were interrupted.
+   */
+  RC (*usleep)(uint usec);
+
 
   /*!
    * Put the calling thread in the back of the scheduling queue and run
-   * the schenduler.
+   * the scheduler.
+   *
+   * \return RC_OK always
    */
-  void (*yieldthread)(void);
+  RC (*yieldthread)(void);
 
   /*!
    * join with the thread given id {tid}.
    * 
+   * \param {tid} - thread identifier to wait for
+   *
+   * \return RC_OK when thread {tid} has terminated. 
    */
-  void* (*jointhread)(ThreadID tid);
+  RC (*jointhread)(ThreadID tid);
 
   /*!
-   * Return the number of active threads.
+   * Return the number of active threads created by this 
+   * OSal instance. Note this excludes the main-thread 
+   * and threads created by other instances.
+   * 
+   * Cannot fail
    */
   uint (*number_of_threads)(void);
 
@@ -254,51 +328,69 @@ typedef struct _operating_environment_ {
   /*!
    * Create a new MUTEX which is free/unlocked.
    *
-   * \return (void*)0 on failure, non zero otherwise.
+   * \param {fresh_mutex} - handle for fresh mutex
+   * 
+   * \return RC_OK on success.
    */
-  MUTEX (*newmutex)(void);
+  RC (*newmutex)(MUTEX * fresh_mutex);
 
   /*!
    * Acquire the given MUTEX {m} or block the calling thread until {m}
    * becomes available.
+   *
+   * \param {m} - the mutex to acquire
+   *
+   * \return RC_OK if lock acquired. 
    */
-  void (*lock)(volatile MUTEX m);
+  RC (*lock)(volatile MUTEX m);
 
   /*! 
    * Release the given MUTEX {m}. 
-   *  
+   * 
+   * \return RC_OK if lock on {m} freed.
    */
-  void (*unlock)(volatile MUTEX m);
+  RC (*unlock)(volatile MUTEX m);
 
   /*!
    * Destroy mutex {m} releasing its resources.
    * 
    */
-  void (*destroymutex)(MUTEX * m);
+  RC (*destroymutex)(MUTEX * m);
 
   /*!
    * Create a new semaphore with the given count
    *
+   * \param {s}     - the semaphore to create
+   * \param {count} - number of permits before blocking
+   * 
+   * \return RC_OK of success.
    */
-  Cmaphore (*newsemaphore)(uint count);
+  RC (*newsemaphore)(Cmaphore * s, uint count);
 
   /*!
    * Count Semaphore down one, block the calling thread if the given
    * semaphore {c} is zero.
    *
+   * \return RC_OK on success
    */
-  void (*down)(Cmaphore c);
+  RC (*down)(Cmaphore c);
 
   /*!
    * Destroy semaphore releasing its resources.
    *
+   * \return RC_OK on success
    */
-  void (*destroysemaphore)(Cmaphore * c);
+  RC (*destroysemaphore)(Cmaphore * c);
 
   /*!
    * Count semaphore up, releasing on thread waiting on {c}.
+   *
+   * \param {c} - semaphore to add permit to.
+   * 
+   *
+   * \return RC_OK on success
    */
-  void (*up)(Cmaphore c);
+  RC (*up)(Cmaphore c);
 
 
   // ------------------------------------------------------------
@@ -314,14 +406,13 @@ typedef struct _operating_environment_ {
 
   /*!
    * write a trace message to the system log.
-   *
    */
-  void (*syslog)(LogLevel level, const char * msg);
+  void (*syslog)(LogLevel level, const char * fmt,...);
 
   /*!
    * print to the syslog on warn. equivalent to syslog(OSAL_LOGLEVEL_WARN, msg);
    */
-  void (*p)(const char * msg);
+  void (*p)(const char * fmt,...);
 
   /*!
    * Print to the user on OSAL_LOGLEVEL_USER behaving like {printf}.
@@ -346,15 +437,24 @@ typedef struct _operating_environment_ {
   void * impl;
 
 } * OE;
-   /*
-   * Create a linux based operating environment abstraction layer.
-   */
-  OE OperatingEnvironment_LinuxNew();
-  void OperatingEnvironment_LinuxDestroy( OE * oe );
 
-  /*
-   * Data helper
-   */
+// ----------------------------------------
+// int key map constructor and destructor
+// ----------------------------------------
+IntKeyMap IntKeyMap_New(OE oe);
+void IntKeyMap_Destroy(IntKeyMap * map);
+
+// ----------------------------------------
+// Create platform default operating system 
+// abstraction layer.
+// ----------------------------------------
+OE OperatingEnvironment_New();
+void OperatingEnvironment_Destroy(OE * oe);
+  
+
+// ----------------------------------------
+// Data helper
+// ----------------------------------------
   Data Data_new(OE oe,uint size);
   Data Data_copy(OE oe, Data other);
   void Data_destroy(OE oe, Data * d);

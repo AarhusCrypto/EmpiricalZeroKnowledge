@@ -4,16 +4,13 @@
  *  Created on: Jan 9, 2015
  *      Author: rwl
  */
-
-
 #include <rnd.h>
 #include <osal.h>
 #include <stdlib.h>
-#include <coov3.h>
+#include <coov4.h>
 #include <time.h>
 
-COO_DCL(Rnd,void,libc_rand,byte * data, uint ldata);
-COO_DEF_NORET_ARGS(Rnd,libc_rand, byte *data; uint ldata;,data,ldata) {
+COO_DEF(Rnd,void,libc_rand,byte * data, uint ldata)
 	srand(time(0));
 	if (data != 0) {
 		uint i = 0;
@@ -31,7 +28,7 @@ COO_DEF_NORET_ARGS(Rnd,libc_rand, byte *data; uint ldata;,data,ldata) {
 Rnd LibcWeakRandomSource_New(OE oe) {
 	Rnd rnd = (Rnd)oe->getmem(sizeof(*rnd));
 
-	COO_ATTACH_FN(Rnd, rnd, rand, libc_rand);
+	rnd->rand = COO_attach(rnd, Rnd_libc_rand);
 	rnd->impl = oe;
 
 	return rnd;
@@ -50,7 +47,7 @@ void LibcWeakRandomSource_Destroy(Rnd * p_rnd) {
 	r = *p_rnd;
 	oe = r->impl;
 
-	COO_DETACH(r,rand);
+	COO_detach(rand);
 
 	oe->putmem(r);
 	*p_rnd = 0;

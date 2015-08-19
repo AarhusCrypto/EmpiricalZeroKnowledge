@@ -35,5 +35,5 @@
 # Changes: 
 # 2013-07-25 11:57: Initial version created
 
-SUBDIRS = src test headers
-AM_CFLAGS = -I$(top_srcdir)/headers
+SUBDIRS = src test include
+

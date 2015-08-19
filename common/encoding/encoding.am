@@ -46,8 +46,4 @@
 # hope is only a few variables needs to be redefined.
 #
 #
-BUILDDIR=$(top_srcdir)/build
-DEPS_INCLUDE=-I$(top_srcdir)/headers -I$(prefix)/include
-AM_CFLAGS=$(DEPS_INCLUDE)
-DEPS_OSAL_A=-L$(prefix)/lib -lencoding -losalposix -losal
-
+AM_CFLAGS=-I$(top_srcdir)/include -I$(prefix)/include

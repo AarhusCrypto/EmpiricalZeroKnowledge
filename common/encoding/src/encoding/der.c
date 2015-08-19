@@ -1,7 +1,9 @@
 #include "encoding/der.h"
+#include "encoding/int.h"
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <coov4.h>
 
 #define UNI ( 0x00 << 6 )
 #define APP ( 0x01 << 6 )
@@ -16,7 +18,7 @@
  * of the remaining data to {l}. E.g. extract the length and write it to {*l}...
  */
 DerRC get_len(uint * l, byte * buf, uint * off, uint lbuf) {
-  int i = 0;
+  uint i = 0;
 
   if (!l) return DER_ARG;
 
@@ -48,6 +50,314 @@ DerRC get_len(uint * l, byte * buf, uint * off, uint lbuf) {
 
   return DER_OK;
 }
+
+typedef struct _der_output_stream_ {
+	RC(*write_int)(ull v);
+	RC(*write_str)(byte * str, uint lstr);
+	RC(*write_cstr)(const char * cstr);
+	RC(*begin_seq)();
+	RC(*leave_seq)();
+	void * impl;
+} *DerOutputStream;
+
+#define CYCLIC_BUF_SIZ 8192
+typedef struct _der_input_stream_impl_ {
+	OE oe;
+	FD fd;
+
+	// cyclic buffer
+	byte cbuf[CYCLIC_BUF_SIZ];
+	uint cbuf_start;
+	uint cbuf_len;
+
+	List seqs;
+
+} *DerInputStreamImpl;
+
+static RC cyclic_take(DerInputStreamImpl s, byte * b) {
+	RC rc = RC_OK;
+	if (s->cbuf_len == 0) {
+		byte buf[CYCLIC_BUF_SIZ] = { 0 };
+		uint lbuf = sizeof(buf);
+		uint i = 0;
+
+		rc = s->oe->read(s->fd, buf, &lbuf);
+		if (rc != RC_OK) return rc;
+
+		for (i = 0; i < lbuf; ++i) {
+			uint idx = (s->cbuf_start + i) % sizeof(s->cbuf);
+			s->cbuf[idx] = buf[i];
+		}
+
+		s->cbuf_len = lbuf;
+	}
+
+	if (s->cbuf_len > 0) {
+		if (b) {
+			*b = s->cbuf[s->cbuf_start];
+		}
+		s->cbuf_start = (s->cbuf_start + 1) % sizeof(s->cbuf);
+		s->cbuf_len -= 1;
+	}
+	else {
+		return RC_BAD_DATA;
+	}
+	return rc;
+}
+
+static void cyclic_rewind(DerInputStreamImpl s) {
+	s->cbuf_len += 1;
+	s->cbuf_start = (s->cbuf_start - 1) % sizeof(s->cbuf);
+}
+
+static RC read_thelen(DerInputStreamImpl impl, uint * len, uint * _lenlen) {
+	byte l = 0;
+	RC rc = RC_OK;
+	uint thelen = 0;
+	uint j = 0;
+
+	rc = cyclic_take(impl, &l);
+	if (rc != RC_OK) return rc;
+
+	if (l > 0x80) {
+		byte lenbyt = 0;
+		uint lenlen = l - 0x80;
+
+		for (j = 0; j < lenlen; ++j) {
+			rc = cyclic_take(impl, &lenbyt);
+			if (rc != RC_OK) return rc;
+
+			thelen += (lenbyt << 8 * (lenlen - 1 - j));
+		}
+		if (_lenlen) *_lenlen = lenlen+1;
+	}
+	else {
+		thelen = l;
+		if (_lenlen) *_lenlen = 1;
+	}
+
+
+	if (len) {
+		*len = thelen;
+	}
+
+	return RC_OK;
+}
+
+typedef struct _seq_entry_ {
+	ull offset;
+	ull length;
+	ull lenlen;
+} *SeqEnt;
+
+COO_DEF(DerInputStream, RC, peek_tag, ull * tagout) {
+	DerInputStreamImpl impl = (DerInputStreamImpl)this->impl;
+	OE oe = impl->oe;
+	RC rc = RC_OK;
+	byte tag = 0;
+	uint thelen = 0, j = 0;
+
+	rc = cyclic_take(impl, &tag);
+	if (rc != RC_OK) return rc;
+
+	cyclic_rewind(impl);
+	
+	if (tagout) {
+		*tagout = tag;
+	}
+
+	return RC_OK;
+}}
+
+COO_DEF(DerInputStream, RC, leave_seq) {
+	DerInputStreamImpl impl = (DerInputStreamImpl)this->impl;
+	OE oe = impl->oe;
+	RC rc = RC_OK;
+	byte tag = 0;
+	uint thelen = 0, j = 0;
+	SeqEnt ent = 0;
+	ull len = 0, thelenlen = 0;
+
+
+	if (impl->seqs->size() == 0) return RC_BAD_DATA;
+
+	ent = impl->seqs->get_element(impl->seqs->size() - 1);
+	if (!ent) return RC_FAIL;
+
+	impl->seqs->rem_element(impl->seqs->size() - 1);
+
+	for (j = 0; j < ent->length - ent->offset; ++j) {
+		rc = cyclic_take(impl, 0);
+		if (rc != RC_OK) return rc;
+	}
+	len = ent->length;
+	thelenlen = ent->lenlen;
+	oe->putmem(ent);
+
+	ent = impl->seqs->get_element(impl->seqs->size() - 1);
+	if (ent) {
+		ent->offset += ( len + thelenlen + 1);
+	}
+
+	return RC_OK;
+
+}}
+
+COO_DEF(DerInputStream, RC, begin_seq) {
+	DerInputStreamImpl impl = (DerInputStreamImpl)this->impl;
+	OE oe = impl->oe;
+	RC rc = RC_OK;
+	byte tag = 0;
+	uint thelen = 0, j = 0, thelenlen = 0;
+	SeqEnt ent = oe->getmem(sizeof(*ent));
+
+	rc = cyclic_take(impl, &tag);
+	if (rc != RC_OK) return rc;
+
+	if (tag != 0x30) {
+		cyclic_rewind(impl);
+		return RC_BAD_DATA;
+	}
+
+	rc = read_thelen(impl, &thelen,&thelenlen);
+	if (rc != RC_OK) return rc;
+
+	ent->offset = 0;
+	ent->length = thelen;
+	ent->lenlen = thelenlen;
+
+	impl->seqs->add_element(ent);
+
+	return RC_OK;
+}}
+
+COO_DEF(DerInputStream, RC, read_str, byte ** str, uint *lstr) {
+	DerInputStreamImpl impl = (DerInputStreamImpl)this->impl;
+	OE oe = impl->oe;
+	RC rc = RC_OK;
+	byte tag = 0;
+	uint thelen = 0,j=0, thelenlen = 0;
+	byte *res = 0;
+	SeqEnt ent = 0;
+
+	rc = cyclic_take(impl, &tag);
+	if (rc != RC_OK) return rc;
+
+	if (tag != 0x04) {
+		cyclic_rewind(impl);
+		return RC_BAD_DATA;
+	}
+
+	rc = read_thelen(impl, &thelen,&thelenlen);
+	if (rc != RC_OK) return rc;
+
+	ent = impl->seqs->get_element(impl->seqs->size() - 1);
+	if (ent) {
+		if (ent->length - ent->offset < thelen) return RC_BAD_DATA;
+		ent->offset += (thelen  + 1 + thelenlen);
+	}
+
+	res = impl->oe->getmem(thelen);
+	if (!res) return RC_NOMEM;
+		
+	for (j = 0; j < thelen; ++j) {
+		rc = cyclic_take(impl, res + j);
+		if (rc != RC_OK) {
+			oe->putmem(res);
+			return rc;
+		}
+	}
+	*lstr = thelen;
+	*str = res;
+
+
+	return RC_OK;
+
+}}
+
+
+COO_DEF(DerInputStream, RC, read_int, uint * v) {
+	DerInputStreamImpl impl = (DerInputStreamImpl)this->impl;
+	OE oe = impl->oe;
+	RC rc = RC_OK;
+	byte tag = 0, len = 0;
+	byte ints[4] = { 0 };
+	SeqEnt ent = 0;
+
+	rc = cyclic_take(impl, &tag);
+	if (rc != RC_OK) return rc;
+
+	if (tag != 0x02) return RC_BAD_DATA;
+
+	rc = cyclic_take(impl, &len);
+	if (rc != RC_OK) return rc;
+
+	if (len != 4) {
+		return RC_BAD_DATA;
+	}
+
+	ent = impl->seqs->get_element(impl->seqs->size() - 1);
+	if (ent) {
+		if (ent->length - ent->offset < len) return RC_BAD_DATA;
+		ent->offset += len + 1 + 1;
+	}
+
+
+	rc = cyclic_take(impl, &ints[0]);
+	if (rc != RC_OK) return rc;
+	rc = cyclic_take(impl, &ints[1]);
+	if (rc != RC_OK) return rc;
+	rc = cyclic_take(impl, &ints[2]);
+	if (rc != RC_OK) return rc;
+	rc = cyclic_take(impl, &ints[3]);
+	if (rc != RC_OK) return rc;
+
+	// Big Endian Integer
+	if (v) {
+	  *v = 0;
+		*v += ints[0] << 24;
+		*v += ints[1] << 16;
+		*v += ints[2] << 8;
+		*v += ints[3];
+	}
+
+	return RC_OK;
+}}
+List SingleLinkedList_new(OE oe);
+DerInputStream DerInputStream_New(OE oe, FD in) {
+	DerInputStream res = 0;
+	DerInputStreamImpl impl = 0;
+
+	res = oe->getmem(sizeof(*res));
+	if (!res) return 0;
+
+	impl = oe->getmem(sizeof(*impl));
+	if (!impl) goto fail;
+
+	res->read_int = COO_attach(res, DerInputStream_read_int);
+	res->read_str = COO_attach(res, DerInputStream_read_str);
+	res->begin_seq = COO_attach(res, DerInputStream_begin_seq);
+	res->leave_seq = COO_attach(res, DerInputStream_leave_seq);
+	res->peek_tag = COO_attach(res, DerInputStream_peek_tag);
+	
+
+	res->impl = impl;
+	impl->fd = in;
+	impl->oe = oe;
+	impl->seqs = SingleLinkedList_new(oe);
+
+	return res;
+fail:
+	DerInputStream_Destroy(&res);
+	return 0;
+}
+
+void DerInputStream_Destroy(DerInputStream * s) {
+
+}
+
+DerOutputStream DerOutputStream_New(OE oe, FD out);
+
 
 static DerRC len_len(uint ldata, byte * len, uint * llen) {
   
@@ -252,7 +562,7 @@ DerRC der_encode_octetstring(byte * v, uint lv, byte * out, uint * off, uint lou
 
     out[*off + 0] = OCTET_STR_P; // encode tag
     if (len_len(lv,out+1,&lenlen) != DER_OK) return DER_ARG;  // encode len
-    memcpy(out+lenlen+1,v,lv); // content
+    mcpy(out+lenlen+1,v,lv); // content
   }
 
   *off += lenlen + 1 + lv;
@@ -288,7 +598,7 @@ DerRC der_decode_octetstring(byte *v, uint * lv, byte * in, uint * off, uint lin
 
   if (*lv < len) return DER_ARG;
 
-  memcpy(v,in + *off,len);
+  mcpy(v,in + *off,len);
 
   *lv = len;
 
@@ -357,7 +667,7 @@ DerRC der_upd_seq( byte * result, uint * offset, uint lresult, byte * data, uint
     uint lswap = nlenlen - olenlen;
     swap = (byte*)malloc(lswap);
     if (!swap) return DER_MEM;
-    memset(swap,0,lswap);
+    zeromem(swap,lswap);
 
     
     do {
@@ -373,7 +683,7 @@ DerRC der_upd_seq( byte * result, uint * offset, uint lresult, byte * data, uint
 
   off = 1+nlenlen+olen;
 
-  memcpy(result+off,data,ldata);
+  mcpy(result+off,data,ldata);
   rc = len_len(nlen,result+1,&nlenlen);
   if (rc != DER_OK) return rc;
 
@@ -544,7 +854,7 @@ void der_ctx_free( DerCtx ** ctx ) {
     (*ctx)->subs=0;
   }
   
-  memset(*ctx,0,sizeof(**ctx));
+  zeromem(*ctx,sizeof(**ctx));
   free(*ctx);
   *ctx = 0;
   
@@ -556,7 +866,7 @@ DerRC der_begin( DerCtx ** ctx) {
   if (!ctx) return DER_ARG;
   new = (DerCtx*)malloc(sizeof(*new));
   if (!new) return DER_MEM;
-  memset(new,0,sizeof(*new));
+  zeromem(new,sizeof(*new));
   *ctx = new;
 
   return DER_OK;
@@ -568,7 +878,7 @@ DerRC der_begin( DerCtx ** ctx) {
   
   new = (DerCtx*)malloc(sizeof(*new));
   if (!new) return DER_MEM;
-  memset(new,0,sizeof(*new));
+  zeromem(new,sizeof(*new));
 
   new->parent = *ctx;
   *ctx = new;
@@ -611,11 +921,11 @@ DerRC der_end_seq( DerCtx ** ctx ) {
   if (!mine_collapsed) {
     return DER_MEM;
   }
-  memset(mine_collapsed,0,lres);
+  zeromem(mine_collapsed,lres);
 
   idx = (lres-tlen);
   for(i = 0;i<mine->lsubs;++i) {
-    memcpy(mine_collapsed+idx,mine->subs[i].data, mine->subs[i].ldata);
+    mcpy(mine_collapsed+idx,mine->subs[i].data, mine->subs[i].ldata);
     idx += mine->subs[i].ldata;
   }
   
@@ -632,7 +942,7 @@ DerRC der_end_seq( DerCtx ** ctx ) {
     rc= DER_MEM;
     goto failure;
   }
-  memset(parent->subs, 0, sizeof(DerData)*parent->lsubs);
+  zeromem(parent->subs,  sizeof(DerData)*parent->lsubs);
 
   for(i = 0;i<parent->lsubs-1;++i) {
     parent->subs[i]=tmp[i];
@@ -675,7 +985,7 @@ DerRC der_end_seq( DerCtx ** ctx ) {
     rc = DER_MEM;
     goto failure;
   }
-  memset(ctx->subs, 0, sizeof(DerData)*ctx->lsubs);
+  zeromem(ctx->subs, sizeof(DerData)*ctx->lsubs);
 
   for(i = 0;i<ctx->lsubs-1;++i) {
     ctx->subs[i]=tmp[i];
@@ -687,7 +997,7 @@ DerRC der_end_seq( DerCtx ** ctx ) {
     rc = DER_MEM;
     goto failure;
   }
-  memset(ctx->subs[ctx->lsubs-1].data,0,6);
+  zeromem(ctx->subs[ctx->lsubs-1].data,6);
   ctx->subs[ctx->lsubs-1].ldata = 6;
 
   rc = der_encode_integer(val, 
@@ -726,7 +1036,7 @@ DerRC der_insert_octetstring( DerCtx * ctx, byte * d, uint ld) {
   out = (byte*)malloc(off);
   if (!out) return DER_MEM;
   lout = off;
-  memset(out,0,lout);
+  zeromem(out,lout);
 
   off = 0;
   rc = der_encode_octetstring(d, ld, out, &off, lout);
@@ -742,7 +1052,7 @@ DerRC der_insert_octetstring( DerCtx * ctx, byte * d, uint ld) {
     rc = DER_MEM;
     goto failure;
   }
-  memset(ctx->subs,0,sizeof(DerData)*(ctx->lsubs));
+  zeromem(ctx->subs,sizeof(DerData)*(ctx->lsubs));
 
 
   for(i = 0;i<ctx->lsubs-1;++i) {
@@ -788,7 +1098,7 @@ DerRC der_insert_octetstring( DerCtx * ctx, byte * d, uint ld) {
     uint idx = 0;
     if (*ldata < tlen) return DER_SHORT;
     for(i = 0;i<mine->lsubs;++i) {
-      memcpy(data+idx,mine->subs[i].data, mine->subs[i].ldata);
+      mcpy(data+idx,mine->subs[i].data, mine->subs[i].ldata);
       idx += mine->subs[i].ldata;
     }
     *ldata = tlen;
@@ -809,7 +1119,6 @@ uint peek_tag(byte * d) {
   tag = d[0];
   
   if ((tag & 0x1F /*00011111*/) == 31) {
-    printf("[EncDer] Unsupported DER tag\n");
     return 0;
   }
 
@@ -855,7 +1164,7 @@ DerRC der_begin_read(DerCtx ** ctx, byte * data, uint ldata) {
                         &off, 
                         &res->subs[sub_no].data,
                         &res->subs[sub_no].ldata);
-    if (rc != DER_OK) return rc;
+	if (rc != DER_OK) goto failure;
   }
 
   rc = DER_OK;

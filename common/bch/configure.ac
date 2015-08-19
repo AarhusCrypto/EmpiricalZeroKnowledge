@@ -13,7 +13,7 @@ AC_PROG_RANLIB
 
 AC_CHECK_LIB([pthread],[pthread_create],,[AC_MSG_ERROR([Could not find pthread])],)
 AC_CHECK_LIB([osal],[l2b],,[AC_MSG_ERROR([Could not find OSal])],-lpthread)
-AC_CHECK_LIB([osalposix],[OperatingEnvironment_LinuxNew],,[AC_MSG_ERROR([Could not find OSalPosix])],-lpthread)
+AC_CHECK_LIB([osalposix],[OperatingEnvironment_New],,[AC_MSG_ERROR([Could not find OSalPosix])],-lpthread)
 
 # List the makefiles that configure should care about creating (in cooperation with automake)
 AC_OUTPUT([Makefile 

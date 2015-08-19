@@ -7,9 +7,7 @@
 
 #ifndef LIST_H
 #define LIST_H
-
-#include <osal.h>
-
+#include <common.h>
 typedef struct _list_ {
   /*!
    * Get the i'th element of this list if the list is that long. NULL

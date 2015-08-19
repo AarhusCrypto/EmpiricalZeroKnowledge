@@ -5,7 +5,7 @@
  *      Author: rwl
  */
 #include <testutils.h>
-#include <coov3.h>
+#include <coov4.h>
 
 // random source for test purposes that always generates sequences of {v}.
 typedef struct _test_rnd_ {
@@ -14,12 +14,11 @@ typedef struct _test_rnd_ {
 } * TestRnd;
 
 // fill byte array {d} with {ld} values of {impl->v}
-COO_DCL(Rnd,void,test_rnd_rand,byte * d, uint ld);
-COO_DEF_NORET_ARGS(Rnd,test_rnd_rand,byte * d; uint ld;, d,ld) {
+COO_DEF(Rnd,void,test_rnd_rand,byte * d, uint ld) {
 	uint i = 0;
 	TestRnd impl = this->impl;
 	for(i = 0;i < ld;++i) d[i] = impl->v;
-}
+}}
 
 // create a test random source always producing {v}
 Rnd TestRnd_New(OE oe, byte v) {
@@ -31,7 +30,7 @@ Rnd TestRnd_New(OE oe, byte v) {
 	tr = oe->getmem(sizeof(*tr));
 	if (!tr) goto fail;
 
-	COO_ATTACH_FN(Rnd,rnd,rand,test_rnd_rand);
+	rnd->rand = COO_attach(rnd,Rnd_test_rnd_rand);
 	rnd->impl = tr;
 	tr->oe = oe;
 	tr->v = v;
@@ -57,7 +56,7 @@ void TestRnd_Destroy(Rnd * tr) {
 	t = r->impl;
 	if (!t) return;
 
-	COO_DETACH(r,rand);
+	COO_detach(r->rand);
 	oe = t->oe;
 
 	oe->putmem(r);

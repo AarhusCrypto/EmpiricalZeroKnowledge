@@ -1,35 +1,50 @@
 #include <datetime.h>
 #include <osal.h>
-#include <coov3.h>
+#include <coov4.h>
 #include <common.h>
 #ifdef OSX
 #include <mach/mach_time.h>
+#elif WINDOWS
+#include <Windows.h>
+#include <time.h>
 #else
 #include <time.h>
 #endif
 
-COO_DCL(DateTime,ull,getMicroTime);
-COO_DEF_RET_NOARGS(DateTime,ull,getMicroTime) {
+COO_DEF(DateTime, ull, getMicroTime) 
 	return this->getNanoTime()/1000;
 }
 
 
-COO_DCL(DateTime,ull,getMilliTime);
-COO_DEF_RET_NOARGS(DateTime,ull,getMilliTime) {
+COO_DEF(DateTime,ull,getMilliTime) 
 	return this->getNanoTime()/1000000;
 }
 
 
-COO_DCL(DateTime,uint,getSecondTime);
-COO_DEF_RET_NOARGS(DateTime,uint,getSecondTime) {
-	return this->getNanoTime()/1000000000L;
+COO_DEF(DateTime,uint,getSecondTime)
+	return (uint)this->getNanoTime()/1000000000L;
 }
 
 
-COO_DCL(DateTime,ull,getNanoTime);
-COO_DEF_RET_NOARGS(DateTime,ull,getNanoTime) {
+COO_DEF(DateTime, ull, getNanoTime)
 #ifdef OSX
-	return mach_absolute_time();
+return mach_absolute_time();
+#elif WINDOWS
+/*
+   GetSystemTimeAsFileTime primitive used below
+   reports back the number of 100-nanoseconds elapsed 
+   since january 1st 1601.
+
+   according to: http://stackoverflow.com/questions/1695288/getting-the-current-time-in-milliseconds-from-the-system-clock-in-windows
+   this discussion this is one of the more reliable ways of getting fine precision time
+   on windows. Yes I know the {getNanoTime} function is kind of inaccurate now.
+ */
+FILETIME t = { 0 };
+ull result = 0;
+GetSystemTimeAsFileTime(&t);
+result = t.dwLowDateTime;
+result += (((unsigned long long)t.dwHighDateTime) << 32);
+return (result - 116444736000000000LL)*100;
 #else
 	// clock_gettime requires -lrt
   struct timespec tspec = {0};
@@ -44,10 +59,10 @@ COO_DEF_RET_NOARGS(DateTime,ull,getNanoTime) {
 
 DateTime DateTime_New(OE oe) {
 	DateTime res = oe->getmem(sizeof(*res));
-	COO_ATTACH(DateTime,res,getNanoTime);
-	COO_ATTACH(DateTime,res,getMicroTime);
-	COO_ATTACH(DateTime,res,getSecondTime);
-	COO_ATTACH(DateTime,res,getMilliTime);
+	res->getNanoTime = COO_attach(res, DateTime_getNanoTime);
+	res->getMicroTime = COO_attach(res, DateTime_getMicroTime);
+	res->getSecondTime = COO_attach(res, DateTime_getSecondTime);
+	res->getMilliTime = COO_attach(res, DateTime_getMilliTime);
 	res->impl = oe;
 	return res;
 }
@@ -64,10 +79,10 @@ void DateTime_Destroy(DateTime * instance) {
 	dt = *instance;
 	oe = (OE)dt->impl;
 
-	COO_DETACH(dt,getNanoTime);
-	COO_DETACH(dt,getMicroTime);
-	COO_DETACH(dt,getMilliTime);
-	COO_DETACH(dt,getSecondTime);
+	COO_detach(dt->getNanoTime);
+	COO_detach(dt->getMicroTime);
+	COO_detach(dt->getMilliTime);
+	COO_detach(dt->getSecondTime);
 	oe->putmem(dt);
 	*instance = 0;
 }

@@ -36,7 +36,7 @@ typedef struct _gate_ {
 } * Gate;
 
 typedef struct _source_map_ {
-
+	void * impl;
 } * SourceMap;
 
 /**

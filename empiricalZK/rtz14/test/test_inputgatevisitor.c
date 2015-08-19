@@ -137,12 +137,14 @@ static int test_large_file(OE oe) {
 	Tokenizer tk = 0;CircuitParser cp = 0;
 	List ast = 0;
 	byte * buffer = oe->getmem(lbuffer);
-	uint fp = oe->open("file ../test/AES"), i = 0;
-	CircuitVisitor cv = InputGateVisitor_New(oe);
+	uint fp = 0, i = 0;
+	CircuitVisitor cv = 0; 
 	Map input_gates = 0;
 	List aoig = 0;
 	DateTime clock = 0;
 	ull start = 0;
+	oe->open("file ../test/AES",&fp);
+	cv = InputGateVisitor_New(oe);
 	clock = DateTime_New(oe);
 	start = clock->getMicroTime();
 	oe->read(fp,buffer,&lbuffer);

@@ -3,7 +3,7 @@
 #include <osal.h>
 #include <stdio.h>
 
-inline static int
+static int
 slen(char * s) {
   uint i = 0;
   while(s[i]) ++i;
@@ -21,7 +21,7 @@ uint hash_fn(void * a) {
   return res;
 }
 
-inline static 
+static 
 int compare_fn(void * a, void * b) {
   char * sa = (char*)a;
   char * sb = (char*)b;

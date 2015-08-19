@@ -13,7 +13,7 @@ static int cfn(void * a, void * b) {
 }
 
 int main(int c, char **a) {
-  OE oe = OperatingEnvironment_LinuxNew();
+  OE oe = OperatingEnvironment_New();
   OE tmp = 0;
   Map hmap = HashMap_new(oe,hfn,cfn,5);
   hmap->put( (void*)(ull)1,oe);
@@ -34,6 +34,6 @@ int main(int c, char **a) {
 
   
   
-  OperatingEnvironment_LinuxDestroy( &oe );
+  OperatingEnvironment_Destroy( &oe );
   return 0;
 }

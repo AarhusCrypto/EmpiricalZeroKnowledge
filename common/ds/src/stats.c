@@ -1,5 +1,5 @@
 #include "stats.h"
-#include <coov3.h>
+#include <coov4.h>
 #include <singlelinkedlist.h>
 #include <hashmap.h>
 #include <datetime.h>
@@ -60,10 +60,15 @@ static Measurement top;
 static MUTEX lock;
 
 void init_stats(OE oe) {
+	RC rc = RC_OK;
   if (!_oe_) {
     MeasurementImpl topi = 0;
     _oe_ = oe;
-    lock = oe->newmutex();
+    rc = oe->newmutex(&lock);
+	if (rc != RC_OK) {
+		oe->p("Could not initialise mutex...");
+		return;
+	}
     top = Measurement_New("CMiniMacs Statistics");
     topi=(MeasurementImpl)top->impl;
     topi->sub = (Map)HashMap_new(_oe_, str_hash, str_compare, 128);
@@ -71,8 +76,7 @@ void init_stats(OE oe) {
 }
 
 
-COO_DCL(Measurement, void, set_start);
-COO_DEF_NORET_NOARGS(Measurement, set_start) {
+COO_DEF(Measurement, void, set_start)
   MeasurementImpl impl = (MeasurementImpl)this->impl;
   _oe_->lock(impl->l);
   DateTime dt = (DateTime)_oe_->getSystemLibrary(DATE_TIME_LIBRARY);
@@ -80,15 +84,13 @@ COO_DEF_NORET_NOARGS(Measurement, set_start) {
   _oe_->unlock(impl->l);
 }
 
-COO_DCL(Measurement, char *, get_name)
-COO_DEF_RET_NOARGS(Measurement, char *, get_name) {
+COO_DEF(Measurement, char *, get_name)
   MeasurementImpl impl = (MeasurementImpl)this->impl;
   return impl->name;
 }
 
 
-COO_DCL(Measurement, void, measure);
-COO_DEF_NORET_NOARGS(Measurement, measure) {
+COO_DEF(Measurement, void, measure)
   MeasurementImpl impl = (MeasurementImpl)this->impl;
   ull duration = 0;
   _oe_->lock(impl->l);
@@ -254,11 +256,11 @@ Measurement Measurement_New(char * name) {
   }
 
   impl->start = impl->min = impl->max = impl->avg = impl->count = 0;
-  impl->l = _oe_->newmutex();
+  _oe_->newmutex(&(impl->l));
 
-  COO_ATTACH(Measurement, res, get_name);
-  COO_ATTACH(Measurement, res, measure);
-  COO_ATTACH(Measurement, res, set_start);
+  res->get_name = COO_attach(res, Measurement_get_name);
+  res->measure = COO_attach(res, Measurement_measure);
+  res->set_start = COO_attach(res, Measurement_set_start);
 
   res->impl = impl;
 

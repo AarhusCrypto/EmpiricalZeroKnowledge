@@ -70,7 +70,9 @@ void ProofTasks_Destroy(OE oe, List * pt) ;
  * its visit method.
  *
  */
-CircuitVisitor ProofTaskBuilder_New(OE oe, byte and_challenge, byte * permaj, uint lpermaj, uint no_inputs);
+CircuitVisitor ProofTaskBuilder_New(OE oe, byte and_challenge, 
+				    byte * permaj, uint lpermaj, 
+				    uint no_inputs, uint address_of_one);
 
 // clean up the proof task builder.
 void ProofTaskBuilder_Destroy(CircuitVisitor * ptb);
@@ -94,11 +96,14 @@ void ProofTaskBuilder_Destroy(CircuitVisitor * ptb);
  *
  * \param evaled_circuit - the evaluated circuit
  *
+ * \param address_of_one - the index for address with constant one
+ *
  * \return a fresh circuit visitor for generating random permutations consistent with the
  * circuit given to visit.
  *
  */
-CircuitVisitor GeneratePermuationsAndMajorities_New(OE oe, Rnd rnd, byte * evaled_circuit);
+CircuitVisitor GeneratePermuationsAndMajorities_New(OE oe, Rnd rnd, 
+						    byte * evaled_circuit, uint address_of_one);
 
 /**
  * The result from running the {GeneratePermutationsAndMajorities} visitor on
@@ -113,6 +118,7 @@ typedef struct _gpam_result_ {
 	 * ceil(#AND_GATES*3/8) elements.
 	 */
 	byte * permutations;
+
 	/**
 	 * {majority} is a bit-array containing pairs of bits each an index pointing out
 	 * a permutation of two of the bits (in a group of three) such that the first two

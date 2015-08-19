@@ -66,12 +66,15 @@ int osal_strlen(const char * s) {
   return i;
 }
 
+#ifndef WINDOWS
+#define vsprintf_s(a,b,c,d) vsprintf(a,c,d)
+#endif
 
 int osal_sprintf(char * b, const char * fmt, ... ) {
-  va_list l = {{0}};
+  va_list l = {0};
   int res = 0;
   va_start(l,fmt);
-  res = vsprintf(b, fmt, l);
+  res = vsprintf(b,fmt, l);
   va_end(l);
   return res;
 }

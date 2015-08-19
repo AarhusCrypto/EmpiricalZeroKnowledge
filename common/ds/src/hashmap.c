@@ -1,7 +1,8 @@
 #include "hashmap.h"
 #include <singlelinkedlist.h>
-#include <coov3.h>
+#include <coov4.h>
 
+List SingleLinkedList_new(OE oe);
 typedef struct _hash_map_ {
   List * buckets;
   uint lbuckets;
@@ -10,8 +11,7 @@ typedef struct _hash_map_ {
   OE oe;
 } * HashMap;
 
-COO_DCL(Map, void, put, void * key, void * elm)
-COO_DEF_NORET_ARGS(Map, put, void * key; void * elm;,key,elm) {
+COO_DEF(Map, void, put, void * key, void * elm)
   uint hash_code = 0;
   HashMap hmap = (HashMap)this->impl;
   uint bucket = 0;
@@ -43,8 +43,7 @@ COO_DEF_NORET_ARGS(Map, put, void * key; void * elm;,key,elm) {
   MapEntry_destroy ( &ent );
 }
 
-COO_DCL(Map, void *, get, void * key) 
-COO_DEF_RET_ARGS(Map, void *, get, void * key;,key) {
+COO_DEF(Map, void *, get, void * key)
   HashMap hmap = (HashMap)this->impl;
   uint hash_code = 0, bucket = 0, i =0;
   
@@ -62,8 +61,7 @@ COO_DEF_RET_ARGS(Map, void *, get, void * key;,key) {
   return 0;
 }
 
-COO_DCL(Map, bool, contains, void * key)
-COO_DEF_RET_ARGS(Map, bool, contains, void * key;,key) {
+COO_DEF(Map,bool, contains, void * key)
   HashMap hmap = (HashMap)this->impl;
   uint hash_code = 0;
   uint bucket = 0, i = 0;
@@ -82,8 +80,7 @@ COO_DEF_RET_ARGS(Map, bool, contains, void * key;,key) {
   return False;
 }
 
-COO_DCL(Map, uint, size )
-COO_DEF_RET_NOARGS(Map, uint, size) {
+COO_DEF(Map, int, size )
   HashMap hmap = (HashMap)this->impl;
   uint res = 0;
   uint bucket = 0;
@@ -96,8 +93,7 @@ COO_DEF_RET_NOARGS(Map, uint, size) {
   return res;
 }
 
-COO_DCL(Map, List, get_keys);
-COO_DEF_RET_NOARGS(Map, List, get_keys) {
+COO_DEF(Map, List, get_keys)
   HashMap hmap = (HashMap)this->impl;
   uint bi = 0;
   List res = SingleLinkedList_new(hmap->oe);
@@ -114,8 +110,7 @@ COO_DEF_RET_NOARGS(Map, List, get_keys) {
   return res;
 }
 
-COO_DCL(Map, void *, rem, void * key) 
-COO_DEF_RET_ARGS(Map, void *, rem, void * key;,key) {
+COO_DEF(Map, void *, rem, void * key) 
   HashMap hmap = (HashMap)this->impl;
   uint hash_code=0, bucket=0,i=0;
   hash_code = hmap->hfn(key);
@@ -154,12 +149,12 @@ Map HashMap_new(OE oe, HashFN hfn, CompareFN cfn, uint buckets ) {
 
     
     map->impl = hmap;
-    COO_ATTACH(Map, map, put);
-    COO_ATTACH(Map, map, get);
-    COO_ATTACH(Map, map, contains);
-    COO_ATTACH(Map, map, size);
-    COO_ATTACH(Map, map, rem);
-    COO_ATTACH(Map, map, get_keys);
+    map->put = COO_attach(map, Map_put);
+    map->get = COO_attach(map, Map_get);
+    map->contains = COO_attach(map, Map_contains);
+    map->size = COO_attach(map, Map_size);
+    map->rem = COO_attach(map, Map_rem);
+    map->get_keys = COO_attach(map, Map_get_keys);
 
     hmap->cfn = cfn;
     hmap->hfn = hfn;
@@ -208,10 +203,66 @@ void HashMap_destroy( Map * map ) {
 
   oe->putmem(hmap);
   (*map)->impl = 0;
-  COO_DETACH((*map), get);
-  COO_DETACH((*map), put);
-  COO_DETACH((*map), contains);
-  COO_DETACH((*map), rem);
+  COO_detach((*map)->get);
+  COO_detach((*map)->put);
+  COO_detach((*map)->contains);
+  COO_detach((*map)->rem);
   oe->putmem(*map);
   *map = 0;
+}
+
+static uint int_hash_fn(void * _key) {
+  uint key = (uint)(ull)_key;
+  return (101 * key + 65537);
+}
+
+static int int_compare_fn(void * _key1, void * _key2) {
+  uint key1 = (uint)(ull)_key1;
+  uint key2 = (uint)(ull)_key2;  
+  return ((key1 == key2) ? 0 :key1 > key2 ? 1 : -1);
+}
+
+
+Map HashMap_IntKey_New(OE oe, uint buckets) {
+  Map result = 0;
+  result = HashMap_new(oe,int_hash_fn, int_compare_fn, buckets);
+  return result;
+}
+
+
+static int cstr_compare_fn(void * a, void * b) {
+	char * as = (const char *)a;
+	char * bs = (const char *)b;
+	uint las = 0;
+	uint lbs = 0;
+	uint i = 0;
+	while(as[las++]);
+	while(bs[lbs++]);
+
+	if (las > lbs) return 1;
+	if (las < lbs) return -1;
+
+	while( (i < las) && (as[i] == bs[i])) ++i;
+
+	if (i == las) return 0;
+	if (as[i] > bs[i]) return 1;
+	else return -1;
+}
+
+static uint cstr_hash_fn(void * a) {
+	const char * as = a;
+	uint i = 0;
+	uint hash = 65537;
+	while(as[i]) {
+		hash += 101*as[i];
+		++i;
+	}
+
+	return hash;
+}
+
+Map HashMap_StrKey_New(OE oe,uint buckets) {
+	Map result = 0;
+	result = HashMap_new(oe,cstr_hash_fn,cstr_compare_fn,buckets);
+	return result;
 }

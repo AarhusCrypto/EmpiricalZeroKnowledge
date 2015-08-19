@@ -96,12 +96,17 @@ static int test_with_aes(OE oe) {
 	_Bool ok = 1;
 	uint lbuf = read_file_size("../test/AES");
 	byte * buf = oe->getmem(lbuf);
-	uint fp = oe->open("file ../test/AES");
 	Tokenizer tk = 0;
 	CircuitParser cp = 0;
 	CircuitVisitor ogv = 0;
 	List circuit = 0;
 	List output_gates = 0;
+	RC rc = RC_OK;
+	FD fp = 0;
+
+	rc = oe->open("file ../test/AES", &fp);
+
+	AssertTrue(rc == RC_OK)
 
 	AssertTrue(buf != 0)
 	AssertTrue(fp != 0)

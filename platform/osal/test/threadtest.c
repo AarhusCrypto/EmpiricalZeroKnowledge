@@ -1,21 +1,23 @@
 #include <osal.h>
+#include <testcase.h>
+#ifndef WINDOWS 
 #include <unistd.h>
+#endif
 
-void * test(void * a) {
+static void * test(void * a) {
   OE oe = (OE)a;
   oe->p("Thread saying hello :D waiting forever");
-  usleep(100);
+  usleep(1000000);
   oe->p("How did we ever get here?");
   return 0;
 }
 
-int main(int c, char **a) {
-  OE oe = OperatingEnvironment_LinuxNew();
+static int test_thread_create_and_join(OE oe) {
   ThreadID tid = 0;
 
   oe->p("Thread tests");
   
-  tid = oe->newthread(test,oe);
+  oe->newthread(&tid,test,oe);
   if (tid) {
     oe->p("Thread successfully created");
   } else {
@@ -23,5 +25,19 @@ int main(int c, char **a) {
   }
   
   oe->jointhread(tid);
-  return 0;
+  return tid;
+}
+
+static Test tests[] = {
+	{ "Create and Join test for thread", test_thread_create_and_join }
+};
+
+static TestSuit thread_suit[] = {
+	"Thread suit",
+	0, 0,
+	tests, sizeof(tests) / sizeof(Test)
+};
+
+TestSuit * thread_test_suit(OE oe) {
+  return (TestSuit*)&thread_suit;
 }

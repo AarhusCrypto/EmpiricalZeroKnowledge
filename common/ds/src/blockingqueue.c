@@ -1,19 +1,17 @@
 #include <blockingqueue.h>
 #include <stdarg.h>
-#include <coov3.h>
+#include <coov4.h>
 
-COO_DCL(BlkQueue, void *, get)
-COO_DEF_RET_NOARGS(BlkQueue, void * , get) {
+COO_DEF(BlkQueue, void *, get)
   return BlkQueue_take(this);
 }
 
-COO_DCL(BlkQueue, void, put, void * elm)
-COO_DEF_NORET_ARGS(BlkQueue, put, void * elm;,elm) {
+COO_DEF(BlkQueue, void, put, void * elm)
    BlkQueue_push(this, elm);
 }
 
-COO_DCL(BlkQueue, uint, size) 
-COO_DEF_RET_NOARGS(BlkQueue, uint, size) {
+COO_DEF(BlkQueue, uint, size) 
+
   uint front = this->front;
   uint back = this->back;
   uint cap = this->lelements;
@@ -22,6 +20,7 @@ COO_DEF_RET_NOARGS(BlkQueue, uint, size) {
 
 BlkQueue BlkQueue_new(OE oe, uint size) {
   BlkQueue q = 0;
+  RC rc = RC_OK;
 
   if (!oe) return 0;
 
@@ -32,10 +31,10 @@ BlkQueue BlkQueue_new(OE oe, uint size) {
   
   if (!size) goto failure;
 
-  q->inserts = oe->newsemaphore(size);
+  rc = oe->newsemaphore(&(q->inserts),size);
   if (!q->inserts) goto failure;
   
-  q->takeouts = oe->newsemaphore(0);
+  rc = oe->newsemaphore(&(q->takeouts),0);
   if (!q->takeouts) goto failure;
   
   q->elements = oe->getmem( (size+1)*sizeof(void *));
@@ -49,9 +48,9 @@ BlkQueue BlkQueue_new(OE oe, uint size) {
 
   q->ff = 0;
 
-  COO_ATTACH(BlkQueue, q, get);
-  COO_ATTACH(BlkQueue, q, put);
-  COO_ATTACH(BlkQueue, q, size);
+  q->get = COO_attach(q, BlkQueue_get);
+  q->put = COO_attach(q, BlkQueue_put);
+  q->size = COO_attach(q, BlkQueue_size);
 
   return q;
  failure:

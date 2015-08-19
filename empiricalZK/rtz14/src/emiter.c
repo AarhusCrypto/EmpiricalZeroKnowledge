@@ -1,11 +1,11 @@
 /*
- * emitter.c
+ * Emitter.c
  *
  *  Created on: Jan 8, 2015
  *      Author: rwl
  */
 #include <emiter.h>
-#include <coov3.h>
+#include <coov4.h>
 
 typedef struct _evaluation_string_emitted_ {
   OE oe;
@@ -46,8 +46,7 @@ static byte esev_next_input_bit(ESEVisitor e) {
 	return r;
 }
 
-COO_DCL(CircuitVisitor, void *, ese_visit, List circuit);
-COO_DEF_RET_ARGS(CircuitVisitor, void *, ese_visit, List circuit;,circuit) {
+COO_DEF(CircuitVisitor, void *, ese_visit, List circuit) {
 	uint lbit_string = 0;
 	ESEVisitor e = (ESEVisitor)this->impl;
 	uint i = 0, no_ands = 0;
@@ -83,10 +82,9 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ese_visit, List circuit;,circuit) {
 	er->lemitted_string = (lbit_string+7)/8;
 
 	return er;
-}
+}}
 
-COO_DCL(CircuitVisitor, void *, ese_visit_and, Gate and);
-COO_DEF_RET_ARGS(CircuitVisitor, void *, ese_visit_and, Gate and;,and) {
+COO_DEF(CircuitVisitor, void *, ese_visit_and, Gate and) {
 	ESEVisitor e = (ESEVisitor)this->impl;
 	OE oe = e->oe;
 	e->no_and_gates += 1;
@@ -115,10 +113,9 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ese_visit_and, Gate and;,and) {
 
 
 	return 0;
-}
+}}
 
-COO_DCL(CircuitVisitor, void *, ese_visit_xor, Gate xor);
-COO_DEF_RET_ARGS(CircuitVisitor, void *, ese_visit_xor, Gate xor;,xor) {
+COO_DEF(CircuitVisitor, void *, ese_visit_xor, Gate xor) {
 	ESEVisitor e = (ESEVisitor)this->impl;
 	OE oe = e->oe;
 	e->no_and_gates += 1;
@@ -144,7 +141,7 @@ COO_DEF_RET_ARGS(CircuitVisitor, void *, ese_visit_xor, Gate xor;,xor) {
 	e->input_gates->rem((void*)(ull)xor->dst);
 
 	return 0;
-}
+}}
 
 
 CircuitVisitor EvaluationStringEmitter_New(OE oe, Map input_gates, byte * input) {
@@ -174,9 +171,9 @@ CircuitVisitor EvaluationStringEmitter_New(OE oe, Map input_gates, byte * input)
 	esev->next_input = 0;
 	cv->impl = esev;
 
-	COO_ATTACH_FN(CircuitVisitor,cv,visit,ese_visit);
-	COO_ATTACH_FN(CircuitVisitor,cv,visitAnd, ese_visit_and);
-	COO_ATTACH_FN(CircuitVisitor,cv,visitXor, ese_visit_xor);
+	cv->visit = COO_attach(cv, CircuitVisitor_ese_visit);
+	cv->visitAnd = COO_attach(cv, CircuitVisitor_ese_visit_and);
+	cv->visitXor = COO_attach(cv, CircuitVisitor_ese_visit_xor);
 
 	return cv;
 	error:
@@ -194,9 +191,9 @@ void EvaluationStringEmitter_Destroy(CircuitVisitor * cv) {
 	esev = (ESEVisitor)c->impl;
 	oe = esev->oe;
 
-	COO_DETACH(c,visit);
-	COO_DETACH(c,visitAnd);
-	COO_DETACH(c,visitXor);
+	COO_detach(c->visit);
+	COO_detach(c->visitAnd);
+	COO_detach(c->visitXor);
 
 	oe->putmem(c);
 	oe->putmem(esev);

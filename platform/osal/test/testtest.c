@@ -9,16 +9,46 @@
 
 #include <testcase.h>
 
-extern test_function testoe;
+static int testtestfn(OE oe) {
+  return True;
+}
 
-test_function suit[] = {};
+static int testoefn(OE oe) {
+  extern bool testoe(OE oe);
+  return testoe(oe);
+}
 
-TestSuit toptest = {
-		"Operating Environment Abstraction Layer test suit.",
-		0,
-		0,
-		0,
-		0
+static Test tests1[] = {
+  {"Test Operating Env", testoefn}
 };
 
-TEST_MAIN(toptest)
+static Test tests2[] = {
+    {"Test test", testtestfn},
+};
+
+static TestSuit subsuits =   
+  {"funky test stuff",
+      0,
+      0,
+      tests2,
+      1
+};
+
+static TestSuit * get_funky_suit(OE oe) {
+	return &subsuits;
+}
+
+static GetTestSuit subs[] = { get_funky_suit };
+
+static TestSuit testtest = {
+		"Operating Environment Abstraction Layer test suit.",
+		(__get_suit__ *)subs,
+		1,
+		tests1,
+		1
+};
+
+
+TestSuit * test_test_suit(OE oe) {
+	return &testtest;
+}

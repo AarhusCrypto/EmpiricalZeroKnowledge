@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 int main(int argc, char **args) {
-  OE oe = OperatingEnvironment_LinuxNew();
+  OE oe = OperatingEnvironment_New();
   Map a = Options_New(oe,argc,args);
   List keys = a->get_keys();
   int i = 0;
@@ -24,7 +24,7 @@ int main(int argc, char **args) {
   
   //  SingleLinkedList_destroy( &keys );
   Options_Destroy(&a);
-  OperatingEnvironment_LinuxDestroy(&oe);
+  OperatingEnvironment_Destroy(&oe);
 
   return 0;
 }

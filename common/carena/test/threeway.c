@@ -1,13 +1,12 @@
 #include <osal.h>
 #include <carena.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <mutex.h>
 #include <stats.h>
 
 
 int main(int c, char **a) {
-  OE oe = OperatingEnvironment_LinuxNew();
+  OE oe = OperatingEnvironment_New();
   CArena arena = CArena_new(oe);
   uint myid = 0;
   uint count = 0;
@@ -50,7 +49,7 @@ int main(int c, char **a) {
   oe->p("Everything done");
 
   CArena_destroy(&arena);
-  OperatingEnvironment_LinuxDestroy(&oe);
+  OperatingEnvironment_Destroy(&oe);
 
   return 0;
 }

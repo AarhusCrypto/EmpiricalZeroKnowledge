@@ -35,4 +35,4 @@
 # Changes: 
 # 2013-07-25 11:57: Initial version created
 AM_LDFLAGS=-L$(prefix)/lib
-SUBDIRS = src test headers
+SUBDIRS = src test include

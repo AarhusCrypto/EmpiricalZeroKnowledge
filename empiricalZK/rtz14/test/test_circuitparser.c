@@ -55,7 +55,8 @@ static int parse_file(OE oe) {
 	Tokenizer tk = 0;CircuitParser cp = 0;
 	List ast = 0;
 	byte * buffer = oe->getmem(lbuffer);
-	uint fp = oe->open("file ../test/AES"), i = 0;
+	uint fp = 0, i = 0;
+	oe->open("file ../test/AES",&fp);
 	oe->read(fp,buffer,&lbuffer);
 	oe->close(fp);
 	tk = FunCallTokenizer_New(oe);

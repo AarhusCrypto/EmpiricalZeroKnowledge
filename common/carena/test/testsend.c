@@ -1,12 +1,16 @@
 #include <osal.h>
 #include <carena.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <coov3.h>
+#include <coov4.h>
 #include <mutex.h>
 #include <time.h>
 #include <stats.h>
 #include <datetime.h>
+#include <testcase.h>
+
+#ifndef WINDOWS
+#include <unistd.h>
+#endif
 
 /*
  C                S
@@ -227,7 +231,7 @@ void * client (void * a) {
   MpcPeer peer = 0;
   Data s = Data_new(oe,SIZE);
   Data r = Data_new(oe,SIZE);
-  int i = 0;
+  uint i = 0;
   
   for(i = 0;i < s->ldata;++i) {
     s->data[i] = 0x42;
@@ -244,11 +248,11 @@ void * client (void * a) {
     CHECK_POINT_E("Client");
   }    
 
-  return arena;
+  CArena_destroy(&arena);
+  return 0;
 }
 
-COO_DCL(ConnectionListener, void, client_connected, MpcPeer peer) 
-COO_DEF_NORET_ARGS(ConnectionListener, client_connected, MpcPeer peer;,peer) {
+COO_DEF(ConnectionListener, void, client_connected, MpcPeer peer) 
   ConnectionListener l = (ConnectionListener)this;
   OE oe = l->oe;
   oe->unlock(m);
@@ -256,8 +260,7 @@ COO_DEF_NORET_ARGS(ConnectionListener, client_connected, MpcPeer peer;,peer) {
   return;
 }
 
-COO_DCL(ConnectionListener, void, client_disconnected, MpcPeer peer)
-COO_DEF_NORET_ARGS(ConnectionListener, client_disconnected, MpcPeer peer;,peer) {
+COO_DEF(ConnectionListener, void, client_disconnected, MpcPeer peer)
   ConnectionListener l = (ConnectionListener)this;
   OE oe = l->oe;
   oe->p("Peer disconnected");
@@ -267,16 +270,15 @@ COO_DEF_NORET_ARGS(ConnectionListener, client_disconnected, MpcPeer peer;,peer) 
 ConnectionListener MyCL_new(OE oe) {
   ConnectionListener l = oe->getmem(sizeof(*l));
   l->oe = oe;
-  COO_ATTACH(ConnectionListener,l,client_connected);
-  COO_ATTACH(ConnectionListener,l,client_disconnected);
+  l->client_connected = COO_attach(l, ConnectionListener_client_connected);
+  l->client_disconnected = COO_attach(l, ConnectionListener_client_disconnected);
   return l;
 }
 
 
 
-int main(int c, char **a) {
+static int test_send_recv(OE oe) {
   uint i = 0;
-  OE oe = OperatingEnvironment_LinuxNew();
   CArena arena = CArena_new(oe);
   ConnectionListener cl = MyCL_new(oe);
   ThreadID tid = 0;
@@ -288,28 +290,14 @@ int main(int c, char **a) {
 
   InitStats(oe);
 
-  if (c == 2) {
-    int val = atoi(a[1]);
-    if (val > 0 && val < sizeof(scenarios)/sizeof(struct scenario)+1) {
-      scenario = val - 1;
-      printf("Scenario set to %u\n", scenario);
-    }
-  }
-
-  for(i = 0; i < COUNT; ++i ) {
-    CHECK_POINT_S("Sanity");
-    usleep(500);
-    CHECK_POINT_E("Sanity");
-  }
-
   arena->add_conn_listener(cl);
 
-  m = oe->newmutex();
+  if (oe->newmutex(&m) != RC_OK) goto fail;
 
   oe->lock(m);
+  oe->newthread(&tid, client, oe);
   arena->listen(2021);
   oe->p("Listening on 2021 for clients");
-  tid = oe->newthread(client, oe);
   oe->lock(m);
 
   peer = arena->get_peer(0);
@@ -322,7 +310,7 @@ int main(int c, char **a) {
   
   printf("-------------------- SCENARIO --------------------\n");
   {
-    DateTime dt = oe->getSystemLibrary(DATE_TIME_LIBRARY);
+	  DateTime dt = DateTime_New(oe);
     ull ms = 0;
     start = dt->getNanoTime();
     for(i = 0; i < COUNT;++i) {
@@ -339,7 +327,7 @@ int main(int c, char **a) {
   }
 
   
-  other = (CArena)oe->jointhread(tid);
+  (CArena)oe->jointhread(tid);
 
   printf("%p \n", other);
 
@@ -347,7 +335,23 @@ int main(int c, char **a) {
 
   printf(oe->get_version());printf("\n");
 
-  printf("Press any key to exit\n");
-  getchar();
+  CArena_destroy(&arena);
+  return 1;
+fail:
+  CArena_destroy(&arena);
   return 0;
+}
+
+static Test tests[] = {
+	{ "Test send and receive", test_send_recv }
+};
+
+static TestSuit test_and_send_suit = {
+	"Test send and receive",
+	0, 0,
+	tests, sizeof(tests) / sizeof(Test)
+};
+
+TestSuit * get_test_and_send_suit(OE oe) {
+	return &test_and_send_suit;
 }

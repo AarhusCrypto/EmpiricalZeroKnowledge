@@ -91,14 +91,14 @@ static uint decode_address_of_one(OE oe, Map options) {
 }
 
 int main(int argc, char ** argv) {
-	OE oe = OperatingEnvironment_LinuxNew();
+	OE oe = OperatingEnvironment_New();
 	byte * buffer = 0;
 	uint lbuffer = 0;
 	byte * witness = 0;
 	uint port = 0;
 	Map options = 0;
 	Rtz14 zk = 0;
-	Rnd rnd = 0;
+	Rnd rnd = LibcWeakRandomSource_New(oe);
 	DateTime t = DateTime_New(oe);ull s = 0;
 	CommitmentScheme cs = 0;
 	uint aoo = 0;
@@ -107,37 +107,28 @@ int main(int argc, char ** argv) {
 		return -1;
 	}
 
-	rnd = LibcWeakRandomSource_New(oe);
-	if (!rnd) {
-		oe->syslog(OSAL_LOGLEVEL_FATAL,"failed to instantiate random source.");
-		return -2;
-	}
-
 	options = Options_New(oe,argc,argv);
 	if (!options) {
 		oe->syslog(OSAL_LOGLEVEL_FATAL,"unable to parse command line arguments :(");
 		return -2;
 	}
 
-	// TODO(rwz): Bernardo, wrap your scheme in the commit interface in {commitment.h}
-	// and instantiate that wrapping here:
-	// cs = CDDGNT14_New(oe,rnd);
-	// cs = Sha512BasedUcScheme_New(oe,rnd);
-	cs = DummyScheme_New(oe);
+	cs = Sha512BasedUcScheme_New(oe,rnd);
 	if (!cs) {
 		oe->syslog(OSAL_LOGLEVEL_FATAL,"Out of memory, cannot instantiate commitment scheme.");
 		return -2;
 	}
+	
+	
 
 	aoo = decode_address_of_one(oe, options);
 
-	zk =  Rtz14_New(oe, rnd, cs ,aoo);
+	zk =  Rtz14_New(oe, rnd, cs,aoo);
 	if (!zk) {
 		oe->syslog(OSAL_LOGLEVEL_FATAL,"unable to create Rtz14 instance.");
 		return -3;
 	}
 
-	// circuit and port given then we are either Prover or Verifier
 	if (options->contains("circuit") && options->contains("port")) {
 		bool success = 0;
 		Tokenizer tk = 0;
@@ -158,15 +149,10 @@ int main(int argc, char ** argv) {
 
 		// load entire circuit into memory
 		lbuffer = load_buffer(oe,&buffer,options->get("circuit"));
-		if (!buffer) return -4;
+		if (!buffer) return 0;
 
 		// parse buffer to a circuit (list of gates)
 		circuit = cp->parseSource(buffer,lbuffer);
-		if (!circuit) {
-			oe->syslog(OSAL_LOGLEVEL_FATAL,"unable to parse circuit.");
-			return -4;
-		}
-		CircuitParser_Destroy(&cp);
 
 		UserReport(oe,"Parsing circuit took %lu ms.",t->getMilliTime()-s);
 
@@ -174,7 +160,6 @@ int main(int argc, char ** argv) {
 		s = t->getMilliTime();
 		// decode witness
 		witness = decode_witness(oe,options);
-
 		UserReport(oe, "Preparing proof with witness %s... ",witness);
 
 		// decode port
@@ -185,7 +170,6 @@ int main(int argc, char ** argv) {
 		(oe->putmem(buffer),buffer=0,lbuffer=0);
 
 		UserReport(oe,"Executing proof ");
-
 		// act as prover or verifier depending on arguments given.
 		success = zk->executeProof(circuit, witness,
 				                   (char*)options->get("ip"), port);
@@ -219,6 +203,6 @@ int main(int argc, char ** argv) {
 
 	// and we are done
 
-	OperatingEnvironment_LinuxDestroy(&oe);
+	OperatingEnvironment_Destroy(&oe);
 	return 0;
 }

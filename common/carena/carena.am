@@ -46,12 +46,6 @@
 # hope is only a few variables needs to be redefined.
 #
 #
-BUILDDIR=$(top_srcdir)/build
-DEPS_INCLUDE=-I$(top_srcdir)/headers -I$(prefix)/include 
-CARENA_LIB=-L$(prefix)/lib -lcarena -lencoding -lds -lpthread
-AM_CFLAGS=$(DEPS_INCLUDE)  -fno-omit-frame-pointer  
 
-
-AM_CFLAGS=-I$(top_srcdir)/headers -I$(prefix)/include
-AM_LDFLAGS=-L$(prefix)/lib -lcarena -lencoding -lds -lpthread
-
+AM_CFLAGS=-I$(top_srcdir)/include -I$(prefix)/include
+AM_LDFLAGS=-L$(prefix)/lib

@@ -8,9 +8,11 @@
 
 
 #include <circuitparser.h>
-#include <coov3.h>
+#include <coov4.h>
 #include <osal.h>
 #include <singlelinkedlist.h>
+
+
 
 typedef struct _circuit_parser_impl_ {
 	Gate (*parseAnd)();
@@ -35,8 +37,7 @@ void Circuit_Destroy(OE oe, List * circuit) {
 	SingleLinkedList_destroy(circuit);
 }
 
-COO_DCL(CPI,Gate,parseAnd);
-COO_DEF_RET_NOARGS(CPI, Gate, parseAnd) {
+COO_DEF(CPI,Gate,parseAnd)
 	char b[64] = {0};
 	Token dst = {0}, op1 = {0}, op2 = {0};
 	Gate g = 0;
@@ -71,8 +72,7 @@ COO_DEF_RET_NOARGS(CPI, Gate, parseAnd) {
 	return g;
 }
 
-COO_DCL(CPI, Gate , parseXor);
-COO_DEF_RET_NOARGS(CPI, Gate , parseXor) {
+COO_DEF(CPI, Gate , parseXor)
 	Token dst = {0}, op1 = {0}, op2 = {0};
 	Gate g = 0;
 	this->tokenizer->nextToken(&dst);
@@ -114,8 +114,7 @@ COO_DEF_RET_NOARGS(CPI, Gate , parseXor) {
 
 // Our AST basis for analysis is XOR and AND. We do not accept INV however,
 // INV(x) is equivalent to XOR(x,1) so we build XOR(x,1) instead.
-COO_DCL(CPI, Gate, parseInv);
-COO_DEF_RET_NOARGS(CPI,Gate,parseInv) {
+COO_DEF(CPI, Gate, parseInv)
 	OE oe = this->oe;
 	Gate g = (Gate)oe->getmem(sizeof(*g));
 	Token dst = {0}, src = {0};
@@ -196,8 +195,7 @@ static void print_token(OE oe, Token tok) {
     oe->syslog(OSAL_LOGLEVEL_FATAL,___b___); \
   }
 
-COO_DCL(CircuitParser, List, parseSource, byte * src, uint lsrc);
-COO_DEF_RET_ARGS(CircuitParser, List, parseSource, byte * src; uint lsrc;, src,lsrc) {
+COO_DEF(CircuitParser, List, parseSource, byte * src, uint lsrc)
 	char msg[64] = {0};
 	CPI cpi = (CPI)this->impl;
 	OE oe = cpi->oe;
@@ -273,10 +271,10 @@ CircuitParser CircuitParser_New(OE oe, Tokenizer tk) {
 
 	parser->impl = impl;
 
-	COO_ATTACH(CircuitParser, parser, parseSource);
-	COO_ATTACH(CPI, impl, parseXor);
-	COO_ATTACH(CPI, impl, parseAnd);
-	COO_ATTACH(CPI, impl, parseInv);
+	parser->parseSource = COO_attach(parser, CircuitParser_parseSource);
+	impl->parseXor = COO_attach(impl, CPI_parseXor);
+	impl->parseAnd = COO_attach(impl, CPI_parseAnd);
+	impl->parseInv = COO_attach(impl, CPI_parseInv);
 
 	return parser;
 	error:
@@ -295,10 +293,10 @@ void CircuitParser_Destroy(CircuitParser * parser) {
 	if (!cpi) return;
 
 	oe = cpi->oe;
-	COO_DETACH(p,parseSource);
-	COO_DETACH(cpi,parseAnd);
-	COO_DETACH(cpi,parseXor);
-	COO_DETACH(cpi,parseInv);
+	COO_detach(p->parseSource);
+	COO_detach(cpi->parseAnd);
+	COO_detach(cpi->parseXor);
+	COO_detach(cpi->parseInv);
 
 	oe->putmem(p);
 	oe->putmem(cpi);
@@ -349,8 +347,7 @@ static uint read_name(byte *d, uint ld, uint pos) {
 	return i-pos;
 }
 
-COO_DCL(Tokenizer,RC,nextToken,Token * tok);
-COO_DEF_RET_ARGS(Tokenizer,RC,nextToken, Token * tok;, tok) {
+COO_DEF(Tokenizer,RC,nextToken,Token * tok)
 	FCT impl = (FCT)this->impl;
 	Token res = {0};
 	OE oe = impl->oe;
@@ -418,8 +415,7 @@ COO_DEF_RET_ARGS(Tokenizer,RC,nextToken, Token * tok;, tok) {
 	return RC_OK;
 }
 
-COO_DCL(Tokenizer,void,start,byte * src, uint lsrc);
-COO_DEF_NORET_ARGS(Tokenizer,start,byte *src; uint lsrc;, src,lsrc) {
+COO_DEF(Tokenizer,void,start,byte * src, uint lsrc)
 	FCT impl = this->impl;
 	impl->data = src;
 	impl->ldata = lsrc;
@@ -437,8 +433,8 @@ Tokenizer FunCallTokenizer_New(OE oe) {
 	impl->oe = oe;
 	impl->cur = 0;
 	tk->impl = impl;
-	COO_ATTACH(Tokenizer,tk,nextToken);
-	COO_ATTACH(Tokenizer,tk,start);
+	tk->nextToken = COO_attach(tk,Tokenizer_nextToken);
+	tk->start     = COO_attach(tk,Tokenizer_start);
 	return tk;
 	error:
 	FunCallTokenizer_Destroy(&tk);
@@ -457,8 +453,8 @@ void FunCallTokenizer_Destroy(Tokenizer * tk) {
 	if (!t->impl) return;
 
 
-	COO_DETACH(t, nextToken);
-	COO_DETACH(t, start);
+	COO_detach(t->nextToken);
+	COO_detach(t->start);
 
 	fct = (FCT)t->impl;
 	oe = fct->oe;

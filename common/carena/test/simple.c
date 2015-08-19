@@ -3,7 +3,7 @@
 
 
 int main(int c, char **a) {
-  OE oe = OperatingEnvironment_LinuxNew();
+  OE oe = OperatingEnvironment_New();
 
   CArena arena = CArena_new(oe);
 
@@ -11,7 +11,7 @@ int main(int c, char **a) {
 
   CArena_destroy(&arena);
 
-  OperatingEnvironment_LinuxDestroy(&oe);
+  OperatingEnvironment_Destroy(&oe);
   return 0;
 
 }

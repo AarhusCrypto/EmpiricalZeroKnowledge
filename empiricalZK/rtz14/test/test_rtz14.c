@@ -44,7 +44,7 @@ static int test_run_proof_4_and(OE oe) {
 	circuit->add_element(gp);
 
 	ok = (rtz != 0);
-	//	ok &= rtz->executeProof(circuit,witness,0,2020);
+	ok &= rtz->executeProof(circuit,witness,0,2020);
 
 	Rtz14_Destroy(&rtz);
 	SingleLinkedList_destroy(&circuit);
@@ -62,7 +62,8 @@ typedef struct _test_args_ {
 static void * test_run_proof_one_and_verifier(TestArgs * args) {
 	uint i = 1;
 	args->oe->p("Verfier thread is alive.");
-	while(i++ < 1073741824/2);;
+	args->oe->yieldthread();
+	args->oe->usleep(4500);
 	args->rtz->executeProof(args->circuit,0,"127.0.0.1",2020);
 	return 0;
 }
@@ -98,7 +99,7 @@ static int test_run_proof_one_and(OE oe) {
 	AssertTrue(rtz_prover != 0);
 	AssertTrue(rtz_verifier != 0);
 
-	tid = oe->newthread(test_run_proof_one_and_verifier,&args);
+	oe->newthread(&tid,test_run_proof_one_and_verifier,&args);
 	AssertTrue( rtz_prover->executeProof(circuit,&witness,0,2020) == True );
 	oe->jointhread(tid);
 
@@ -139,7 +140,7 @@ static int test_run_proof_one_and_not_satisfied(OE oe) {
 	AssertTrue(rtz_prover != 0);
 	AssertTrue(rtz_verifier != 0);
 
-	tid = oe->newthread(test_run_proof_one_and_verifier,&args);
+	oe->newthread(&tid,test_run_proof_one_and_verifier,&args);
 	AssertTrue( rtz_prover->executeProof(circuit,&witness,0,2020) == False );
 	oe->jointhread(tid);
 
@@ -188,7 +189,7 @@ static int test_run_proof_one_and_fail(OE oe) {
 	AssertTrue(rtz_prover != 0);
 	AssertTrue(rtz_verifier != 0);
 
-	tid = oe->newthread(test_run_proof_one_and_verifier,&args);
+	oe->newthread(&tid,test_run_proof_one_and_verifier,&args);
 	AssertTrue( ok = rtz_prover->executeProof(circuit,&witness,0,2020) == False );
 	oe->jointhread(tid);
 
@@ -238,7 +239,7 @@ static int test_run_proof_randomness_fixed_to_zero(OE oe) {
 	AssertTrue(rtz_prover != 0);
 	AssertTrue(rtz_verifier != 0);
 
-	tid = oe->newthread(test_run_proof_one_and_verifier,&args);
+	oe->newthread(&tid,test_run_proof_one_and_verifier,&args);
 	AssertTrue( ok = rtz_prover->executeProof(circuit,&witness,0,2020) == True );
 	oe->jointhread(tid);
 
@@ -261,10 +262,11 @@ static int run_protocol_on_aes(OE oe) {
 	byte * buf = 0;
 	uint lbuf = 1093096;
 	uint fp = 0;
+
 	witness[256] = 1;
 	buf = oe->getmem(lbuf);
 	AssertTrue(buf != 0);
-	fp = oe->open("file ../test/AES");
+	oe->open("file ../test/AES",&fp);
 	oe->read(fp,buf,&lbuf);
 	oe->close(fp);
 
@@ -293,7 +295,7 @@ static int run_protocol_on_aes(OE oe) {
 	AssertTrue(rtz_prover != 0);
 	AssertTrue(rtz_verifier != 0);
 
-	tid = oe->newthread(test_run_proof_one_and_verifier,&args);
+	oe->newthread(&tid,test_run_proof_one_and_verifier,&args);
 	AssertTrue( ok = rtz_prover->executeProof(circuit,&witness,0,2020) == True );
 	oe->jointhread(tid);
 
@@ -301,6 +303,68 @@ static int run_protocol_on_aes(OE oe) {
 	return ok;
 
 }
+
+static int run_protocol_on_aes_wrong_witness(OE oe) {
+	_Bool ok = 1;
+	CommitmentScheme cs = 0;
+	Rnd rnd = 0;
+	Tokenizer tk = 0;
+	CircuitParser cp = 0;
+	uint aoo = 256; // address of one
+	byte witness[257] = {0};
+	Rtz14 rtz_prover = 0, rtz_verifier = 0;
+	List circuit = 0;
+	TestArgs args = {0};
+	ThreadID tid = 0;
+	byte * buf = 0;
+	uint lbuf = 1093096;
+	uint fp = 0;
+
+	witness[256] = 1;
+
+	// wrong witness
+	witness[0] = 1;
+
+	buf = oe->getmem(lbuf);
+	AssertTrue(buf != 0);
+	oe->open("file ../test/AES",&fp);
+	oe->read(fp,buf,&lbuf);
+	oe->close(fp);
+
+	tk = FunCallTokenizer_New(oe);
+	AssertTrue(tk != 0)
+	cp = CircuitParser_New(oe,tk);
+	AssertTrue(cp != 0)
+	cs = DummyScheme_New(oe);
+	AssertTrue(cs != 0)
+	rnd = (Rnd)TestRnd_New(oe,0x55);
+	AssertTrue(rnd != 0)
+	rtz_prover = Rtz14_New(oe, rnd, cs, aoo);
+	AssertTrue(rtz_prover != 0)
+	rtz_verifier = Rtz14_New(oe, rnd, cs, aoo);
+	AssertTrue( rtz_verifier != 0 )
+
+
+
+	circuit = cp->parseSource(buf,lbuf);
+
+	args.circuit = cp->parseSource(buf,lbuf);
+	args.oe = oe;
+	args.rtz = rtz_verifier;
+
+
+	AssertTrue(rtz_prover != 0);
+	AssertTrue(rtz_verifier != 0);
+
+	oe->newthread(&tid,test_run_proof_one_and_verifier,&args);
+	AssertTrue( ok = rtz_prover->executeProof(circuit,&witness,0,2020) == False );
+	oe->jointhread(tid);
+
+	test_end:
+	return ok;
+
+}
+
 
 static int test_run_one_xor_gate( OE oe ) {
 	_Bool ok = 1;
@@ -334,7 +398,7 @@ static int test_run_one_xor_gate( OE oe ) {
 	AssertTrue(rtz_prover != 0);
 	AssertTrue(rtz_verifier != 0);
 
-	tid = oe->newthread(test_run_proof_one_and_verifier,&args);
+	oe->newthread(&tid,test_run_proof_one_and_verifier,&args);
 	AssertTrue( rtz_prover->executeProof(circuit,&witness,0,2020) == True );
 	oe->jointhread(tid);
 
@@ -344,14 +408,15 @@ static int test_run_one_xor_gate( OE oe ) {
 }
 
 Test tests[] = {
-		{"creating an RTZ14 instance",test_create_rtz14},
-		{"creating rtz14 with witness (as prover)", test_run_proof_4_and},
-	//	{"run protocol prover one and-gate.",test_run_proof_one_and},
-	//	{"run protocol prover one and-gate fails",test_run_proof_one_and_fail},
-	//	{"run protocol prover one and-gate should fail but randomness is zero",
-	//	 test_run_proof_randomness_fixed_to_zero},
-	//	{"run protocol prover one xor-gate",test_run_one_xor_gate},
+	//	{"creating an RTZ14 instance",test_create_rtz14},
+	//	{"creting rtz14 with witness (as prover)", test_run_proof_4_and},
+		{"run protocol prover one and-gate.",test_run_proof_one_and},
+		{"run protocol prover one and-gate fails",test_run_proof_one_and_fail},
+		{"run protocol prover one and-gate should fail but randomness is zero",
+		 test_run_proof_randomness_fixed_to_zero},
+		{"run protocol prover one xor-gate",test_run_one_xor_gate},
         {"run protocol on AES",run_protocol_on_aes},
+	{"run protocol on AES with wrong witness",run_protocol_on_aes_wrong_witness}
 	//	{"run protocol prover one and-gate not satisfied",test_run_proof_one_and_not_satisfied},
 
 };

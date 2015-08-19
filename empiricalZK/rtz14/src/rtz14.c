@@ -1,5 +1,5 @@
 #include <rtz14.h>
-#include <coov3.h>
+#include <coov4.h>
 #include <singlelinkedlist.h>
 #include <fs.h>
 #include <circuitparser.h>
@@ -143,12 +143,7 @@ static Data build_delta_string(OE oe, List proof_tasks, XORcommitResult xom, byt
 }
 
 
-COO_DCL(Rtz14,bool,executeProof, List circuit, byte * witness, char * ip, uint port);
-
-COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
-		List circuit; byte * witness; char * ip; uint port;,
-		circuit, witness, ip,port) {
-
+COO_DEF(Rtz14,bool,executeProof, List circuit, byte * witness, char * ip, uint port) {
 	Rtz14Impl impl = (Rtz14Impl)this->impl;
 	OE oe = impl->oe;
 	Map input_gates = 0;
@@ -227,7 +222,7 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 		// -----------------------------
 		MpcPeer verifier = 0;
 		byte and_challenge[1] = {0};
-		Data challenge_commitment = Data_new(oe,64);
+		Data challenge_commitment = Data_new(oe,80);
 		XORcommitResult xom = 0;
 		Data epsilon = Data_new(oe,1);
 		Data delta = 0;
@@ -253,7 +248,9 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 		rnd = LibcWeakRandomSource_New(oe);
 		if (!rnd) return False;
 
-		gpam = GeneratePermuationsAndMajorities_New(oe,rnd,emitter_res->emitted_string);
+		gpam = GeneratePermuationsAndMajorities_New(oe,rnd,
+							    emitter_res->emitted_string,
+							    impl->address_of_one);
 		if (!gpam) return False;
 
 		gpam_res = gpam->visit(circuit);
@@ -311,24 +308,24 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 		verifier->receive(Data_shallow(and_challenge,1));
 		UserReport(oe,"[%lums] %s",d->getMilliTime()-start,"Received and challenge");
 
-
-
 		// send permutation or majority tests
 		if (and_challenge[0] == 0) {
 			check_out_bit->value = 3;
 			verifier->send(Data_shallow(gpam_res->permutations,(gpam_res->no_ands*3+7)/8));
-			proof_task_builder = ProofTaskBuilder_New(oe,and_challenge[0],gpam_res->permutations,(gpam_res->no_ands*3+7)/8,no_inputs);
+			proof_task_builder = ProofTaskBuilder_New(oe,and_challenge[0],gpam_res->permutations,(gpam_res->no_ands*3+7)/8,no_inputs, impl->address_of_one);
 		} else {
 			verifier->send(Data_shallow(gpam_res->majority,(gpam_res->no_ands*2+7)/8));
-			proof_task_builder = ProofTaskBuilder_New(oe,and_challenge[0],gpam_res->majority,(gpam_res->no_ands*2+7)/8,no_inputs);
+			proof_task_builder = ProofTaskBuilder_New(oe,and_challenge[0],gpam_res->majority,(gpam_res->no_ands*2+7)/8,no_inputs,impl->address_of_one);
 			check_out_bit->value = 2;
 		}
+		UserReport(oe, "[%lums", d->getMilliTime()-start);
 
 		// build linear proof tasks
 		proof_tasks = proof_task_builder->visit(circuit);
+		proof_tasks->add_element(check_out_bit);
 		UserReport(oe,"[%lums] %u %s",d->getMilliTime()-start,proof_tasks->size(),
 				"Proof Tasks computed ...");
-		proof_tasks->add_element(check_out_bit);
+		
 
 		// build delta string
 		delta = build_delta_string(oe,proof_tasks,xom,and_challenge[0]);
@@ -339,10 +336,12 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 		verifier->send(delta);
 		Data_destroy(oe,&delta);
 
-		// receive epsilon
-		UserReport(oe,"[%lums] waiting for challenge (epsilon %u) ... ",d->getMilliTime()-start,epsilon->ldata);
+		// challenge for the linear tests
+		UserReport(oe,"[%lums] waiting for challenge (epsilon %u) ... ",
+			   d->getMilliTime()-start,epsilon->ldata);
 		verifier->receive(epsilon);
-		UserReport(oe,"[%lums] %s",d->getMilliTime()-start,"Delta string sent and challenge opened receive.");
+		UserReport(oe,"[%lums] %s",
+			   d->getMilliTime()-start,"Delta string sent and challenge opened receive.");
 
 		// send the m_epsilon string to the verifier
 		if (epsilon->data[0] == 0) {
@@ -392,6 +391,7 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 		Data delta = 0;
 		Data m_challenge = 0;
 		uint i = 0, no_ands = 0;
+		ull proto_time = 0;
 
 		// generate random challenges and commit to them
 		impl->rnd->rand(challenge->data,challenge->ldata);
@@ -412,6 +412,7 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 			return -2;
 		}
 
+
 		// send challenge commitment
 		prover->send(challenge_commitment);
 		UserReport(oe,"[%lums] %s %u bytes", d->getMilliTime()-start,"Commitment to challenge sent",challenge_commitment->ldata);
@@ -420,6 +421,7 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 		commitment_to_circuit = Data_new(oe,128);
 		prover->receive(commitment_to_circuit);
 		UserReport(oe,"[%lums] %s", d->getMilliTime()-start,"Circuit XOM commitments received.");
+		proto_time = d->getMilliTime();
 
 		// send the and challenge
 		prover->send(and_challenge);
@@ -446,16 +448,12 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 		UserReport(oe,"[%lums] %s", d->getMilliTime()-start,"Received permutations/majority tests");
 
 		// compute proof tasks the prover must do
-		proof_task_builder = ProofTaskBuilder_New(oe,and_challenge->data[0],permajor->data,permajor->ldata,no_inputs);
+		proof_task_builder = ProofTaskBuilder_New(oe,and_challenge->data[0],
+							  permajor->data,permajor->ldata,
+							  no_inputs, impl->address_of_one);
 		proof_tasks = proof_task_builder->visit(circuit);
 		UserReport(oe,"[%lums] %u %s", d->getMilliTime()-start,proof_tasks->size(),
 				      "Proof Tasks built...");
-		{
-			uint i = 0;
-			for(i = 0; i < proof_tasks->size();++i) {
-				ProofTask_print(oe,proof_tasks->get_element(i));
-			}
-		}
 
 		if (and_challenge->data[0] == 0) {
 			check_out_bit->value = 3;
@@ -506,7 +504,7 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 				UserReport(oe,"Proof Task %u failed [{%u,%u,%u},%u].",i,cur->indicies[0],cur->indicies[1],cur->indicies[2],cur->value);
 			}
 		}
-
+		UserReport(oe, " PROTOCOL TOOK: %llu ms", d->getMilliTime() - proto_time);
 		if (accept) {
 			prover->send(Data_shallow((byte*)"accept ",8));
 			oe->p("Verifier accepted proof.");
@@ -532,7 +530,7 @@ COO_DEF_RET_ARGS(Rtz14, bool, executeProof,
 	return accept;
 	error:
 	return accept;
-}
+}}
 
 
 
@@ -562,7 +560,7 @@ Rtz14 Rtz14_New(OE oe, Rnd rnd, CommitmentScheme scheme, uint address_of_one) {
 	impl->address_of_one = address_of_one;
 
 	// setup interface functions
-	COO_ATTACH(Rtz14,res,executeProof);
+	res->executeProof = COO_attach(res,Rtz14_executeProof);
 
 	return res;
 	error:
@@ -584,7 +582,7 @@ void Rtz14_Destroy(Rtz14 * instance) {
 
 	oe = impl->oe;
 
-	COO_DETACH(i,executeProof);
+	COO_detach(i->executeProof);
 
 	oe->putmem(i);
 	oe->putmem(impl);

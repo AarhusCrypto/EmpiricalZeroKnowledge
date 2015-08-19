@@ -2,8 +2,7 @@
 #include <osal.h>
 #include <carena.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <coov3.h>
+#include <coov4.h>
 #include <mutex.h>
 #include <time.h>
 #include <stats.h>
@@ -160,7 +159,7 @@ int scenario = 0;
 
 int main(int c, char **a) {
   uint i = 0;
-  OE oe = OperatingEnvironment_LinuxNew();
+  OE oe = OperatingEnvironment_New();
   CArena arena = CArena_new(oe);
   //  ConnectionListener cl = MyCL_new(oe);
   Data s = Data_new(oe,SIZE);

@@ -1,5 +1,5 @@
 #include "singlelinkedlist.h"
-#include "coov3.h"
+#include "coov4.h"
 
 #include <string.h>
 
@@ -12,6 +12,7 @@ typedef struct _node_{
 typedef struct _SingleLinkedList_ {
   OE oe;
   Node first;
+  Node last_elm;
   int size;
   Node last;
   uint lasti;
@@ -29,20 +30,17 @@ static Node NodeNew(OE oe, void * element, Node next)
   return res;
 }
 
-COO_DCL(List, void, add_element, void * e)
-COO_DEF_NORET_ARGS(List, add_element, void * e;, e) {
+COO_DEF(List, void, add_element, void * e)
   SingleLinkedList ths = (SingleLinkedList)this->impl;
   OE oe = ths->oe;
   if (ths->first == 0) {
-    ths->first = NodeNew(oe, e, 0);
+    ths->first = ths->last_elm = NodeNew(oe, e, 0);
     ths->size = 1;
     ths->last = 0;
     ths->lasti = 0;
   } else {
-    Node cur = ths->first;
-    while(cur->next)
-      cur = cur->next;
-    cur->next = NodeNew(oe,e,0);
+    Node cur = ths->last_elm;
+    cur->next = ths->last_elm = NodeNew(oe,e,0);
     ths->size++;
     ths->last = 0;
     ths->lasti = 0;
@@ -51,8 +49,7 @@ COO_DEF_NORET_ARGS(List, add_element, void * e;, e) {
 }
 
 
-COO_DCL(List, void *, get_element, uint i)
-COO_DEF_RET_ARGS(List, void *, get_element, uint i;, i) {
+COO_DEF(List, void *, get_element, uint i)
   SingleLinkedList ths = (SingleLinkedList)this->impl;
 
   if (i >= ths->size) return 0;
@@ -74,7 +71,7 @@ COO_DEF_RET_ARGS(List, void *, get_element, uint i;, i) {
       return res->element;
     }
   }
-
+// TODO(rwz): Optimize maybe if (i > size/2) { start from last }.
   {
     uint j = 0;
     Node cur = ths->first;
@@ -86,15 +83,12 @@ COO_DEF_RET_ARGS(List, void *, get_element, uint i;, i) {
   }
 }
 
-COO_DCL(List, uint, size) 
-COO_DEF_RET_NOARGS(List, uint, size) {
+COO_DEF(List, uint, size) 
   SingleLinkedList ths = (SingleLinkedList)this->impl;
   return ths->size;
 }
 
-COO_DCL(List, void *, rem_element, uint i)
-COO_DEF_RET_ARGS(List, void * , rem_element, uint i;,i)
-{
+COO_DEF(List, void *, rem_element, uint i)
   SingleLinkedList ths = (SingleLinkedList)this->impl;
   if (i >= ths->size) return 0;
   {
@@ -103,15 +97,21 @@ COO_DEF_RET_ARGS(List, void * , rem_element, uint i;,i)
     uint j = 0;
     Node cur = ths->first;
     Node prv = 0;
-    while(cur->next && j++ < i)
-      {
+    while(cur->next && j++ < i) {
         prv = cur;
         cur=cur->next;
-      }
+    }
+
     if (!prv) // first elm
       ths->first = cur->next;
     else
       prv->next = cur->next;
+
+
+    if (cur == ths->last_elm) {
+      ths->last_elm = prv;
+    }
+
     elm = cur->element;
     oe->putmem(cur);
     ths->size--;
@@ -136,10 +136,10 @@ List SingleLinkedList_new(OE oe) {
   }
   zeromem(sll, sizeof(*sll));
   
-  COO_ATTACH(List, res, add_element);
-  COO_ATTACH(List, res, get_element);
-  COO_ATTACH(List, res, rem_element);
-  COO_ATTACH(List, res, size);
+  res->add_element = COO_attach(res, List_add_element);
+  res->get_element = COO_attach(res, List_get_element);
+  res->rem_element = COO_attach(res, List_rem_element);
+  res->size =        COO_attach(res, List_size);
   sll->first = 0;
   sll->size = 0;
   sll->oe = oe;

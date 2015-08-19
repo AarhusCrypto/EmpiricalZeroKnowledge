@@ -55,6 +55,8 @@ extern "C" {
     EC_IO
   } EC;
 
+#define ERR(OE,MSG,...) (OE)->p("%s:%d " MSG,__FILE__,__LINE__,##__VA_ARGS__)
+
 // ------------------------------------------------------------
 // define basic types
 // ------------------------------------------------------------
@@ -104,6 +106,7 @@ extern "C" {
    */
   ull b2l(byte * data);
 
+  
 #ifdef __cplusplus
 }
 #endif
