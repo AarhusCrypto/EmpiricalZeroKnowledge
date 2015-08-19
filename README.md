@@ -21,12 +21,12 @@ benchmark we execute:
 
 For the Prover:
 ---------------
-cd empiricalZK/rtz14/linux/
+cd empiricalZK/rtz14/linux/ ;
 src/rtz14 -circuit ../test/AES -witness 00000000000000000000000000000000 -port 2020
 
 For the verifier:
 -----------------
-cd empiricalZK/rtz14/linux/
+cd empiricalZK/rtz14/linux/ ;
 src/rtz14 -circuit ../test/AES -port 2020 -ip <address of the prover> 
 
 (e.g. 127.0.0.1 if run on the same machine)
