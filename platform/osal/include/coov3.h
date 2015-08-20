@@ -1,6 +1,8 @@
 /*
  * coov3.h
  *
+ * Deprecated we are a version 4 now.
+ *
  *  Created on: Dec 8, 2014
  *      Author: rwl
  */

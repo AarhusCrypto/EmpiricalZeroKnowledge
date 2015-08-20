@@ -1,1 +1,27 @@
-Required by automake to exists and of course it should
+************************************************************
+
+	RTZ14 - Circuit Sat Zero Knowledge
+
+
+************************************************************
+
+
+This project offers an executable {rtz14} that implements our protocol
+for proving knowledge of a witness {x} satisfying a circuit {C}. In
+more detail, a Prover can with this software beyond reasonable doubt,
+and for any circuit {C} with one output, convince a Verifier that
+(s)he knows a satisfying assignment to the input gates of {C}.
+
+In test/AES we present an example circuit for Advances Encryption
+Standard (AES). With this circuit the Prover proves that he has
+knowledge the Key that encrypts the all zero plain-text to a
+particular ciphertext. More precisely, the cipher-text obtained from
+encrypting with the all zero key as well. Thus running {rtz14} as
+prover with this circuit and witness all zeros yields an accepting
+Verifier.
+
+The Soundness (probability that a cheating Prover wins) is
+one-half. Thus to obtain security k-bits (e.g. lowing the probability
+a cheating prover wins to 2^{-k}) we repeat the protocol {k} times.
+
+

@@ -105,7 +105,6 @@ extern "C" {
    * value stored as Big Endian byte order.
    */
   ull b2l(byte * data);
-
   
 #ifdef __cplusplus
 }
