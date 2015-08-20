@@ -2,11 +2,9 @@
 #
 # Development script.
 #
-# Linux/Unix are an IDE ! The shell is all the power you'll ever need.
+# Source this file in your bash environment to has easy shortcuts.
 #
-# With these functions you are even more powerful 
 #
-
 
 reload() {
  source "$(realpath ${BASH_SOURCE})"
