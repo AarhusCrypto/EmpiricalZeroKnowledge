@@ -2,7 +2,8 @@
 #
 # Development script.
 #
-# Source this file in your bash environment to has easy shortcuts.
+# Source this file into your bash environment 
+# to have easy shortcuts.
 #
 #
 
