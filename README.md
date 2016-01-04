@@ -1,9 +1,16 @@
 EmpiricalZeroKnowledge
 ======================
 
-We implement the IKOS07 with Scalable MPC from ID06 and compare the
-result with RTZ14 using novel and extremely efficient UC-commitments
-from CDDGNT14.
+We implement the RTZ14 protocol here using ROM commitments H(x;r) . 
+
+Interesting future work includes:
+
+  * Implementing RTZ14 with the extremely efficient UC-commitments from CDDGNT14. Complexity O(k|C|)
+  * implementing IKOS07 with Scalable MPC from ID06 and compare. Complexity O(|C|).
+
+We conjecture that the former construction will be faster for small circuits and reasonble statictical security parameter k.
+
+Currently only RTZ14 is implemented for the publication of the paper https://eprint.iacr.org/2014/934.pdf.
 
 Building the code
 =================
